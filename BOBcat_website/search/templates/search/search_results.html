@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'search/search_results.css' %}" />
+<script src="{% static 'search/onclick.js' %}" defer></script> 
+{% endblock %}
+
+{% block title %}
+    Search Form
+{% endblock %}
+
+{% block content %}
+<div id="brief-text">
+    <p> test test </p>
+</div>
+         
+        <div id="search-source-data-table">
+            <table>
+                <thead>
+                <tr>
+                    <th> NED Name </th>
+                    <th>Models</th>
+                    <th>J2000 RA (hms)</th>
+                    <th>J2000 Declination (dms)</th>
+                    <th>RA (<span>&#176;</span>)</th>
+                    <th>Declination (<span>&#176;</span>)</th>
+                    <th>Redshift</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for source in search_results %}
+                    <tr>
+                       <td><a href="{% url 'source-page' source.NED_name %}" target="_blank">{{source.NED_name}}</a></td>
+                       <td><button onclick="myFunction(document.getElementById('{{ source.NED_name }}'))">Models</button></td>
+                       <td> {{ source.ra}} </td>
+                       <td> {{ source.dec}} </td>
+                       <td> {{ source.ra_deg}} </td>
+                       <td> {{ source.dec_deg}} </td>
+                       <td> {{ source.redshift}} </td>
+                    </tr>
+                </tbody>
+                </table>
+        </div>
+        
+        
+        <div class="search-model-tables" id="{{ source.NED_name }}" border="1" style = "display: none;" cellspacing = 0 >
+            <table>
+                <thead>
+                <tr>
+                    <th>Paper Link</th>
+                        <th>Evidence</th>
+                        <th>M1 (M<sub>&#9737;</sub>)</th>
+                        <th>M2 (M<sub>&#9737;</sub>)</th>
+                        <th>Total Mass (M<sub>&#9737;</sub>)</th>
+                        <th>Mass Ratio - q</th>
+                        <th>Chirp Mass (M<sub>&#9737;</sub>)</th>
+                        <th>Reduced Mass (M<sub>&#9737;</sub>)</th>
+                        <th>Inclination (<span>&#176;</span>)</th>
+                        <th>Eccentricity</th>
+                        {% comment %} <th>SemiMajor Axis</th> {% endcomment %}
+                        <th>GW Strain</th>
+                        <th>GW Frequency (nHz)</th>
+                        {% comment %} <th>Orbital Frequency</th> {% endcomment %}
+                        <th>Orbital Period (yrs)</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                    <tr>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                       <td> test </td>
+                    </tr>
+                
+                </tbody>
+                </table>
+        </div>
+ 
+   
+    {% endfor %}
+
+    
+        
+{% endblock %}

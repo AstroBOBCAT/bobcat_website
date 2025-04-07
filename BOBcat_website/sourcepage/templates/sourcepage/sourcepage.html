@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'sourcepage/sourcepage.css' %}" />
+{% endblock %}
+
+
+{% block title %}
+{% for source in source_data %}
+    {{source.NED_name}} Details
+    {% endfor %}
+{% endblock %}
+
+{% block content %}
+    <div id = "brief-text">
+    <p>This is the source page for a specific SMBHB candidate. TESTESTEST</p>
+    </div>
+
+
+    {% for source in source_data %}
+    <center>
+    <h2>{{source.NED_name}}</h2>
+    </center>
+    <hr/>
+    
+    {% endfor %}
+
+
+
+{% endblock %}
