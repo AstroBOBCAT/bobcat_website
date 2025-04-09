@@ -11,7 +11,7 @@ class source(models.Model):
     dec_deg = models.DecimalField(max_digits=8, decimal_places=5)
     redshift = models.DecimalField(max_digits=8, decimal_places=5)
     #luminosity_distance = models.DecimalField(blank=True, null=True, max_digits=20, decimal_places=5)
-    obs_type_done = models.CharField(max_length=20)
+    #obs_type_done = models.CharField(max_length=20)
 
 
 class binary_model(models.Model):
