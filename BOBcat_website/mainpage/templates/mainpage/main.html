@@ -34,7 +34,7 @@
 </div>
 
 
-
+{% for source in sources %}
 <div id="source-data-table">
     <table>
         <thead>
@@ -50,15 +50,15 @@
         </tr>
     </thead>
     <tbody>
-{% for source in sources %}
+
             <tr>
                <td><a href="{% url 'source-page' source.name %}" target="_blank">{{source.name}}</a></td>
                <td><button onclick="myFunction(document.getElementById('{{ source.name }}'))">Models</button></td>
                {% comment %} <td> {{ source.ra}} </td>
                <td> {{ source.dec}} </td> {% endcomment %}
-               <td> {{ source.ra_deg}} </td>
-               <td> {{ source.dec_deg}} </td>
-               <td> {{ source.redshift}} </td>
+               <td> {{ source.ra_deg|stringformat:".2e"|default_if_none:""}} </td>
+               <td> {{ source.dec_deg|stringformat:".2e"|default_if_none:""}} </td>
+               <td> {{ source.redshift|stringformat:".3f"|default_if_none:""}} </td>
                <td> {{ source.obs_type_done}} </td>
             </tr>
         </tbody>
@@ -71,6 +71,7 @@
         <thead>
             <tr>
                 <th>Paper Link</th>
+                {% comment %} <th>name</th> {% endcomment %}
                 <th>Evidence</th>
                 <th>M1 (M<sub>&#9737;</sub>)</th>
                 <th>M2 (M<sub>&#9737;</sub>)</th>
@@ -88,11 +89,11 @@
     {% for binary_model in binary_models %}
             
         
-        {% if binary_model.candidate_name == source.name %}
+        {% if binary_model.candidate_name == source %}
         <tbody>
-        
             <tr>
                 <td><a href={{binary_model.paper}} target="_blank">paper</a></td>
+                {% comment %} <td> {{binary_model.candidate_name.name|default_if_none:""}} </td> {% endcomment %}
                <td> {{binary_model.evid1_type|default_if_none:""}} </td>
                <td> {{binary_model.m1|stringformat:".2e"|default_if_none:""}} </td>
                <td> {{binary_model.m2|stringformat:".2e"|default_if_none:""}} </td>
@@ -105,13 +106,15 @@
                <td> {{binary_model.orb_period|default_if_none:""}} </td>
                {% comment %} <td><a href="{% url 'binary-model-detail-page' binary_model.source_name %}" target="_blank">{{binary_model.id}}</a></td> {% endcomment %}
             </tr>
-        
         </tbody>
         {% endif %}
+        
+    {% endfor %}
     </table>
+        
 </div>
 
-    {% endfor %}
+    
 
 {% endfor %}
 
