@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.views.generic.edit import CreateView
 
 from mainpage.forms import SearchForm
-from mainpage.models import source
+from mainpage.models import Candidate
 
 from BOBcat_utils.NED_name_resolver import NED_name_resolver
 from BOBcat_utils.ra_hms2deg import ra_hms2deg

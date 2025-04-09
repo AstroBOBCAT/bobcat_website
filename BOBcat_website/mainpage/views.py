@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.views.generic import TemplateView
 from django.views.generic import ListView
 
-from .models import source, binary_model
+from .models import Candidate, BinaryModel
 from .forms import SearchForm
 
 # Create your views here.
@@ -19,8 +19,8 @@ from .forms import SearchForm
 
 def mainpage(request):
     form = SearchForm()
-    sources_all = source.objects.all()
-    binary_models_all = binary_model.objects.all()
+    sources_all = Candidate.objects.all()
+    binary_models_all = BinaryModel.objects.all()
     if request.method=='POST':
         form = SearchForm(request.POST)
         if form.is_valid():

@@ -52,8 +52,8 @@
     <tbody>
         {% for source in sources %}
             <tr>
-               <td><a href="{% url 'source-page' source.NED_name %}" target="_blank">{{source.NED_name}}</a></td>
-               <td><button onclick="myFunction(document.getElementById('{{ source.NED_name }}'))">Models</button></td>
+               <td><a href="{% url 'source-page' source.name %}" target="_blank">{{source.name}}</a></td>
+               <td><button onclick="myFunction(document.getElementById('{{ source.name }}'))">Models</button></td>
                {% comment %} <td> {{ source.ra}} </td>
                <td> {{ source.dec}} </td> {% endcomment %}
                <td> {{ source.ra_deg}} </td>
@@ -66,7 +66,7 @@
 </div>
 
 
-<div class="model-tables" id="{{ source.NED_name }}" border="1" style = "display: none;" cellspacing = 0 >
+<div class="model-tables" id="{{ source.name }}" border="1" style = "display: none;" cellspacing = 0 >
     <table>
         <thead>
         <tr>
@@ -88,7 +88,7 @@
     {% for binary_model in binary_models %}
             
         
-        {% if binary_model.candidate_name == source.NED_name %}
+        {% if binary_model.candidate_name == source.name %}
     <tbody>
         
             <tr>

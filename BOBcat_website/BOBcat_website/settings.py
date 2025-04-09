@@ -87,7 +87,7 @@ WSGI_APPLICATION = 'BOBcat_website.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bobcat_beta_v1',
+        'NAME': 'bobcat',
         'USER': 'postgres',
         'PASSWORD': 'Astro1123!',
         'HOST': 'localhost',
