@@ -50,7 +50,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for source in sources %}
+{% for source in sources %}
             <tr>
                <td><a href="{% url 'source-page' source.name %}" target="_blank">{{source.name}}</a></td>
                <td><button onclick="myFunction(document.getElementById('{{ source.name }}'))">Models</button></td>
@@ -69,8 +69,8 @@
 <div class="model-tables" id="{{ source.name }}" border="1" style = "display: none;" cellspacing = 0 >
     <table>
         <thead>
-        <tr>
-            <th>Paper Link</th>
+            <tr>
+                <th>Paper Link</th>
                 <th>Evidence</th>
                 <th>M1 (M<sub>&#9737;</sub>)</th>
                 <th>M2 (M<sub>&#9737;</sub>)</th>
@@ -82,14 +82,14 @@
                 <th>Eccentricity</th>
                 <th>Orbital Period (yrs)</th>
                 {% comment %} <th> Extra Details </th> {% endcomment %}
-        </tr>
-    </thead>
+            </tr>
+        </thead>
 
     {% for binary_model in binary_models %}
             
         
         {% if binary_model.candidate_name == source.name %}
-    <tbody>
+        <tbody>
         
             <tr>
                 <td><a href={{binary_model.paper}} target="_blank">paper</a></td>
@@ -107,10 +107,11 @@
             </tr>
         
         </tbody>
-        </table>
+        {% endif %}
+    </table>
 </div>
-{% endif %}
-{% endfor %}
+
+    {% endfor %}
 
 {% endfor %}
 
