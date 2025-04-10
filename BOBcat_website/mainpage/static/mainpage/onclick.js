@@ -4,4 +4,5 @@ function myFunction(x) {
       } else {
         x.style.display = "none";
       }
+      return false;
     }
