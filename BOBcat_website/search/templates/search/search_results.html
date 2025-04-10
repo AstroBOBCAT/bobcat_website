@@ -22,8 +22,8 @@
                 <tr>
                     <th> NED Name </th>
                     <th>Models</th>
-                    <th>J2000 RA (hms)</th>
-                    <th>J2000 Declination (dms)</th>
+                    {% comment %} <th>J2000 RA (hms)</th>
+                    <th>J2000 Declination (dms)</th> {% endcomment %}
                     <th>RA (<span>&#176;</span>)</th>
                     <th>Declination (<span>&#176;</span>)</th>
                     <th>Redshift</th>
@@ -32,10 +32,10 @@
             <tbody>
                 {% for source in search_results %}
                     <tr>
-                       <td><a href="{% url 'source-page' source.NED_name %}" target="_blank">{{source.NED_name}}</a></td>
-                       <td><button onclick="myFunction(document.getElementById('{{ source.NED_name }}'))">Models</button></td>
-                       <td> {{ source.ra}} </td>
-                       <td> {{ source.dec}} </td>
+                       <td><a href="{% url 'source-page' source.name %}" target="_blank">{{source.name}}</a></td>
+                       <td><button onclick="myFunction(document.getElementById('{{ source.name }}'))">Models</button></td>
+                       {% comment %} <td> {{ source.ra}} </td>
+                       <td> {{ source.dec}} </td> {% endcomment %}
                        <td> {{ source.ra_deg}} </td>
                        <td> {{ source.dec_deg}} </td>
                        <td> {{ source.redshift}} </td>
@@ -45,7 +45,7 @@
         </div>
         
         
-        <div class="search-model-tables" id="{{ source.NED_name }}" border="1" style = "display: none;" cellspacing = 0 >
+        <div class="search-model-tables" id="{{ source.name }}" border="1" style = "display: none;" cellspacing = 0 >
             <table>
                 <thead>
                 <tr>

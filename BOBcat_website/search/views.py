@@ -34,7 +34,7 @@ def searchpage(request):
                     message = "Name provided is not in the NED database.\
                           Try removing the source name and searching based on RA and Dec."
                 if not(message):
-                    source_filter_dict["NED_name"] = query_NED_name
+                    source_filter_dict["name"] = query_NED_name
       
             if query_ra_hms and not(query_ra_deg):
                 if (re.findall("^[<>]", query_ra_hms)) and not(" " in query_ra_hms):
@@ -238,7 +238,7 @@ def searchpage(request):
                 return render(request, "search/bad_search.html", {"message": message})
 
             if len(source_filter_dict) !=0:
-                source_search_results = source.objects.filter(**source_filter_dict)
+                source_search_results = Candidate.objects.filter(**source_filter_dict)
             else:
                 message = "Empty search. Please input values into at least one search field."
 

@@ -93,7 +93,7 @@
         <tbody>
             <tr>
                 <td><a href={{binary_model.paper}} target="_blank">paper</a></td>
-                {% comment %} <td> {{binary_model.candidate_name.name|default_if_none:""}} </td> {% endcomment %}
+                {% comment %} <td> {{binary_model.paper|default_if_none:""}} </td> {% endcomment %}
                <td> {{binary_model.evid1_type|default_if_none:""}} </td>
                <td> {{binary_model.m1|stringformat:".2e"|default_if_none:""}} </td>
                <td> {{binary_model.m2|stringformat:".2e"|default_if_none:""}} </td>
