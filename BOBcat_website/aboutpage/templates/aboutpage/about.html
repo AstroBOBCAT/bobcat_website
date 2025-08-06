@@ -6,5 +6,172 @@
 {% endblock %}
 
 {% block content %}
-    <p>This is the about page for BOBcat information.</p>
+    <center>
+<h1>BOBcat Beta v0.0 Notes</h1>
+</center>
+<hr/>
+
+<div id = 'text'>
+
+
+<h4>What is BOBcat?</h4>
+
+<p>
+    BOBcat, Black holes Orbiting Black holes catalog, will represent a
+    public-use queryable database of all binary MBH candidates in the
+    literature, but built to expand significantly as new binary
+    candidates arise over the coming era of MBH binary discovery. The
+    broad premise of BOBcat itself is that it will bring together
+    publicly available information that is currently disparate: a
+    large list of papers reporting MBH binary candidates in the
+    literature, PTA sensitivity curves and time-to-detection
+    predictions, and relevant information about galaxy hosts. Our work
+    will centralize and organize this information, with the aim of
+    facilitating multi-messenger science and public outreach with
+    binary massive black holes.  These goals will be realized by
+    linking published information (a binary model) with other freely
+    available information (PTA sensitivity maps, galaxy type, lines of
+    observational evidence, a candidate confidence assessment, and
+    prediction for PTA time-to-detection of a given model).
+</p>
+
+
+
+<h5> BOBcat Beta v0.0 Plan Moving Forward</h5>
+<p margin = 0> While BOBcat Beta v0.0 is available currently, there are several features that we were hoping
+    to add that did not make the deadline of the NANOGrav Spring 2023 meeting. These features
+will be continued to be implemented while BOBcat Beta v0.0 is online in addition to the feedback from 
+NANOGravers who test BOBcat Beta v0.0.</p>
+
+<dl> Expected Additional Features before Beta v1.0 </dl>
+<dd> - Ingestion of additional sources (offline we have ~700 papers) </dd>
+<dd> - Ability to download the results of a search query </dd>
+<dd> - Detailed "source summary pages" linked from the main site</dd>
+<dd> - Search queries for the current parameters shown in red in the search form </dd>
+<dd> - Addition of interactivity (hover, click capabilities) to the skymap shown on home page </dd>
+<dd> - A summary of "model evidence types" (see below) for each source in BOBcat</dd>
+
+
+
+
+<h2>BOBcat Planned Timeline</h2>
+
+<dl><b>Year 0 (now - Sep 2023):</b></dl>
+    <dd> - Most basic prototype of BOBcat, BOBcat beta v0.0, shared with NANOGrav collaboration</dd>
+    <dd> - Continue developing an initial BOBcat front/back-end in close communication with
+         feedback about v0.0 design. </dd>
+
+
+   <dl><b> Year 1 (Sep 2023-Sep 2024):</b></dl>
+   <dd> - Finalizing BOBcat’s base functionality </dd>
+   <dd> - Complete parameter extraction and BOBcat ingestion for
+    priority binary MBH candidate papers</dd>
+    <dd> - Releasing BOBcat v1.0 (online, interactive) back-end/front-end for beta-testing only
+        (not yet public) </dd>
+        <dd> - Procuring feedback from official beta-testers
+            on beta v1.0. </dd>
+
+
+
+
+<dl><b>Year 2 (Sep 2024-Sep 2025):</b></dl>
+<dd> - BOBcat’s v1.0’s public release, encompassing the base search and
+    interactive-plot functionality </dd>
+<dd> - Extraction and ingestion of new candidates
+    and any candidates not completed in year 1 </dd>
+<dd> - Integrate PTA time-to-detection prediction into BOBcat </dd>
+
+
+
+<dl><b>Year 3 (Sep 2025-Sep 2026):</b></dl>
+<dd> - Extraction and ingestion of new candidates and any candidates not completed in years
+    1 and 2 </dd>
+<dd> - Creation of a collaboration
+    network (e.g. git login group) for BOBcat ongoing development by invested members of
+    the community interested in collaborating to maintain the resource </dd>
+<dd> - Potential expansion of BOBcat to include wider-separation
+    sources and “recoil candidates” </dd>
+
+
+
+
+
+
+
+
+
+
+<h3> Model Evidence Types</h3>
+<p> Galactic nuclei, kinematics, and morphology have a huge variety of
+observed signatures that could, but don't defintely, indicate the
+presence of a binary MBH. BOBcat will tag candidates based on the bulk
+categories listed below.<br>
+
+<p><b>Emission-Line Variability: </b>
+    Broad emission-line velocity shifts; 
+    Velocity shifts in double-peaked emitters; 
+    Velocity shifts in single-peaked emitters;
+    Look for radial velocity signature of orbital motion in the emission lines of AGN and quasars
+</p>
+<p>
+        <b>Offset/Double Emission Lines: </b>
+        Double-peaked narrow emission lines;
+        Double-peaked broad lines;
+        Offset-velocity broad line regions</p>
+
+        <p>
+        <b>Periodic Flux: </b>
+        Periodic light curve;
+        Photometric variability;
+        Periodic outbursts</p>
+
+        <p>
+        <b>Resolved Offset-Single or Dual-Core: </b>
+        Galaxy pairs/dual stellar cores;
+        Dual x-ray nuclei;
+        Dual active radio nuclei;
+        Offset active nucleus</p>
+
+        <p>
+        <b>Ongoing Jet Precession (note, this implies pc-scale observation): </b>
+        Periodic radio jet flux oscillations;
+        Helical structure visible;
+        Evidence of helical outflows in time-resolved VLBI</p>
+
+        <p>
+        <b>Large-Scale Radio Structure: </b>
+        X/S/Z shaped sources;
+        Large-scale helical structure</p>
+
+        <p>
+        <b>Large-Scale Galactic Features (tidal tail, phot. asymmetry, cored galaxy): </b> 
+        Single core with tidal tails, no companion;
+        Heightened star formation;
+        Flat stellar core profile/light deficit;
+        Enhanced tidal disruption rates;
+        Multi-wavelength signatures of relativisitic Doppler boost</p>
+
+
+
+        <p>
+        <b>Gravitational Wave Emission - </b>
+        GW memory;
+        Continuous waves;
+        Space-based GW interformetry</p>
+
+        <p>
+        <b>Broad-Band SED Features - </b>
+        Circumbinary disk emission;
+        “UV gaps”</p>
+
+        <p>
+        <b>Other - </b>
+        Theoretical/not yet observed;
+        Not listed</p>
+
+        
+    
+
+
+<div>
 {% endblock %}

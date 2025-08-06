@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    BOBcat
+{% endblock %}
+
+
+{% block css_files %}
+    <link rel="stylesheet" href="{% static "homepage/homepage.css" %}" />
+{% endblock %}
+
+
+{% block content %}
+
+    <center>
+        <h1> OJ287 Models </h1>
+        <hr/>
+        <table border="1">
+            <tr>
+                <th>Model_ID</th>
+                <th>Paper Link</th>
+                <th>Evidence</th>
+                <th>m1</th>
+                <th>m2</th>
+                <th>m_tot</th>
+                <th>q</th>
+                <th>m_chirp</th>
+                <th>mu</th>
+            </tr>
+
+            {% for results_mod in data_mod %}
+            <tr>
+                <td>{{results_mod.model_id}}</td>
+                <td><a href={{results_mod.paper_link}}>paper</a></td>
+                <td>{{results_mod.evidence}}</td>
+                <td>{{results_mod.m1|stringformat:".2e"}}</td>
+                <td>{{results_mod.m2|stringformat:".2e"}}</td>
+                <td>{{results_mod.m_tot|stringformat:".2e"}}</td>
+                <td>{{results_mod.q}}</td>
+                <td>{{results_mod.m_chirp}}</td>
+                <td>{{results_mod.mu}}</td>
+              
+
+            </tr>
+
+            {% endfor %}
+
+
+        </table>
+    </center>
+
+    {% endblock %}

@@ -7,7 +7,6 @@
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 
-
 class AuthGroup(models.Model):
     name = models.CharField(unique=True, max_length=150)
 
@@ -53,7 +52,6 @@ class AuthUser(models.Model):
     class Meta:
         managed = False
         db_table = 'auth_user'
-
 
 class AuthUserGroups(models.Model):
     id = models.BigAutoField(primary_key=True)
