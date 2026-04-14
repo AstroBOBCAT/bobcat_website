@@ -32,9 +32,11 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
     if param2 in bm_cols['column_name'].values:
         query = "SELECT candidate_name AS name, " + param2 + " FROM binary_model"
         df2 = pd.read_sql(query, conn)
+        hist = False
     elif param2 in c_cols['column_name'].values:
         query = "SELECT name, " + param2 + " FROM candidate"
         df2 = pd.read_sql(query, conn)
+        hist = False
     elif param2 == "hist":
         hist = True
     else:
