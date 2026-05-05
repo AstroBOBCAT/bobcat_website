@@ -124,11 +124,16 @@ def mainpage(request):
 	if mode == 'model':
 		for bm in page_obj.object_list:
 			c = bm.candidate_name
+			gw_strain, gw_strain_err, gw_freq, gw_freq_err = cat.derived_gw_values_for_model(bm)
 			table_rows_model.append(
 				{
 					'bm': bm,
 					'candidate': c,
 					'ev_snip': cat.evidence_markup_for_binary_model(bm),
+					'gw_strain': gw_strain,
+					'gw_strain_err': gw_strain_err,
+					'gw_freq': gw_freq,
+					'gw_freq_err': gw_freq_err,
 				},
 			)
 

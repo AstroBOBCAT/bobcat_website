@@ -242,10 +242,10 @@
 					<td data-col-key="period_obs" class="col-default">{{ bm.period_epoch|default_if_none:'' }}</td>
 					<td data-col-key="orb_freq" class="col-extra">{{ bm.orb_freq|default_if_none:'' }}</td>
 					<td data-col-key="seperation" class="col-default">{{ bm.seperation|default_if_none:'' }}</td>
-					<td data-col-key="gw_strain" class="col-extra">{{ bm.gw_strain|default_if_none:'' }}</td>
-					<td data-col-key="gw_strain_err" class="col-err">{{ bm.gw_strain_err|default_if_none:'' }}</td>
-					<td data-col-key="gw_freq" class="col-extra">{{ bm.gw_freq|default_if_none:'' }}</td>
-					<td data-col-key="gw_freq_err" class="col-err">{{ bm.gw_freq_err|default_if_none:'' }}</td>
+					<td data-col-key="gw_strain" class="col-extra">{{ row.gw_strain|default_if_none:'' }}</td>
+					<td data-col-key="gw_strain_err" class="col-err">{{ row.gw_strain_err|default_if_none:'' }}</td>
+					<td data-col-key="gw_freq" class="col-extra">{{ row.gw_freq|default_if_none:'' }}</td>
+					<td data-col-key="gw_freq_err" class="col-err">{{ row.gw_freq_err|default_if_none:'' }}</td>
 					<td data-col-key="summary" class="col-extra clip">{{ bm.summary|default_if_none:'' }}</td>
 					<td data-col-key="evidence" class="col-default nowrap">
 						<span class="ev-chip" title="{{ row.ev_snip.label }}" data-kind="{{ row.ev_snip.icon_key }}">
