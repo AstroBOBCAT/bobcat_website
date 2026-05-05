@@ -10,22 +10,24 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+import os
 from pathlib import Path
+from bobcat_db_interface.keys import db_info
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k1n)&uwh)-hbzcf@8w1dfv(a#i&@a%)z0vdb0pym_&+=*%m_6*'
+SECRET_KEY = os.environ.get(
+	'DJANGO_SECRET_KEY',
+	db_info['django_key'],
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') != '0'
 
-ALLOWED_HOSTS = []
+_ALLOWED = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').strip()
+ALLOWED_HOSTS = [h.strip() for h in _ALLOWED.split(',') if h.strip()]
 
 
 # Application definition
@@ -83,22 +85,15 @@ WSGI_APPLICATION = 'BOBcat_website.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-### !H!H db SARAH ###
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bobcat',
-        'USER': 'postgres',
-        'PASSWORD': 'Astro1123!',
-        'HOST': 'localhost',
-        'PORT': '5432'
-       # 'ENGINE': 'django.db.backends.postgresql',
-       # 'NAME': os.environ.get('POSTGRES_NAME'),
-       # 'USER': os.environ.get('POSTGRES_USER'),
-       # 'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-       # 'HOST': 'db',
-       # 'PORT': 5432,
-    }
+	'default': {
+		'ENGINE': 'django.db.backends.postgresql',
+		'NAME': db_info['dbname'], #os.environ.get('POSTGRES_DB', 'bobcat'),
+		'USER': db_info['user'], #os.environ.get('POSTGRES_USER', 'postgres'),
+		'PASSWORD': db_info['pass'], #os.environ.get('POSTGRES_PASSWORD', ''),
+		'HOST': db_info['host'], #os.environ.get('POSTGRES_HOST', 'localhost'),
+		'PORT': db_info['port'], #os.environ.get('POSTGRES_PORT', '5432'),
+	},
 }
 
 
@@ -149,3 +144,11 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Sensitivities / PTA sky assets (optional)
+BOBCAT_HLIM_TXT = Path(
+	os.environ.get('BOBCAT_HLIM_TXT', str(BASE_DIR / 'data' / 'hlim.txt')),
+)
+BOBCAT_PTA_HP_PATH = Path(
+	os.environ.get('BOBCAT_PTA_HP_PATH', str(BASE_DIR.parent / 'data' / 'PTA.hpx')),
+)

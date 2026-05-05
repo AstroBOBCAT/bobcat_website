@@ -4,7 +4,7 @@ from . import views
 
 
 urlpatterns = [
-    path("<name>", views.sourcepage, name = "source-page")
+	path('<str:name>/', views.sourcepage, name='source-page'),
 ]
 
 # urlpatterns = [

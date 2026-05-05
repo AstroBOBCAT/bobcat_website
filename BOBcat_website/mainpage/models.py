@@ -107,6 +107,10 @@ class BinaryModel(models.Model):
     summary = models.CharField(max_length=500, blank=True, null=True)
     caveats = models.CharField(max_length=100, blank=True, null=True)
     ext_proj = models.CharField(max_length=100, blank=True, null=True)
+    gw_strain = models.FloatField(blank=True, null=True)
+    gw_freq = models.FloatField(blank=True, null=True)
+    gw_strain_err = models.FloatField(blank=True, null=True)
+    gw_freq_err = models.FloatField(blank=True, null=True)
 
     class Meta:
         managed = False
