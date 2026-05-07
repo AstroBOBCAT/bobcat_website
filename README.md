@@ -36,3 +36,10 @@ Add citation once the paper is submitted and accepted.
 
 
 
+## Dependencies:
+- django
+- psycopg2
+- numpy
+- astropy
+- astroquery
+- python 3.14
