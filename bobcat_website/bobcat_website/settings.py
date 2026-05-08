@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 from pathlib import Path
+from bobcat_db_interface.keys import db_info
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k1n)&uwh)-hbzcf@8w1dfv(a#i&@a%)z0vdb0pym_&+=*%m_6*'
+SECRET_KEY = db_info['django_key']
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -80,25 +81,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'BOBcat_website.wsgi.application'
 
 
-# Database
+# Database connection info. Drawn from file on user system.
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
-### !H!H db SARAH ###
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bobcat',
-        'USER': 'postgres',
-        'PASSWORD': 'Astro1123!',
-        'HOST': 'localhost',
-        'PORT': '5432'
-       # 'ENGINE': 'django.db.backends.postgresql',
-       # 'NAME': os.environ.get('POSTGRES_NAME'),
-       # 'USER': os.environ.get('POSTGRES_USER'),
-       # 'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-       # 'HOST': 'db',
-       # 'PORT': 5432,
-    }
+        'NAME': db_info['dbname'],
+	'USER': db_info['user'],
+	'PASSWORD': db_info['pass'],
+	'HOST': db_info['host'],
+	'PORT': db_info['port'],
+    },
 }
 
 
