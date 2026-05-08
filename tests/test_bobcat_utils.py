@@ -4,8 +4,18 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..")) # this seems to b
 
 
 import pytest
-from BOBcat_utils import *
+""".
 
+
+
+
+MOST OF THESE TESTS SHOULD BE IN GW_UTILS - THEY LINK BACK TO A TIME
+WHEN ALL THE CODE WAS IN A SINGLE REPO
+
+
+
+
+"""
 
 def test_NED_name_resolver():
     name = "3C66B"

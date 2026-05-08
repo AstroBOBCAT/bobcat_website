@@ -4,11 +4,18 @@ from django.views.generic.edit import CreateView
 from mainpage.forms import SearchForm
 from mainpage.models import Candidate
 
-from BOBcat_utils.NED_name_resolver import NED_name_resolver
-from BOBcat_utils.ra_hms2deg import ra_hms2deg
+from gw_utils import astrodb
+
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 import re
 from decimal import Decimal
+
+# Swap coordinates from RA/Dec to degrees.
+def ra_hms2deg():
+    c = SkyCoord(ra="12h34m56s", dec="+12d34m56s", unit=(u.hourangle, u.deg))
+    return c
 
 def searchpage(request):
     message = ""
@@ -29,10 +36,10 @@ def searchpage(request):
             # now in the object cd, you have the form as a dictionary.
             if query_name:
                 try:
-                    query_NED_name = NED_name_resolver(query_name)
+                    query_NED_name = astrodb.ned_name(query_name)
                 except:
                     message = "Name provided is not in the NED database.\
-                          Try removing the source name and searching based on RA and Dec."
+                          Try new name or search based on RA and Dec."
                 if not(message):
                     source_filter_dict["name"] = query_NED_name
       
