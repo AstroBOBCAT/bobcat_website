@@ -5,12 +5,12 @@ from django.views.generic import DetailView
 from django.views import View
 from django.views.generic.edit import CreateView
 
-from mainpage.models import Candidate
+from sourcepage.models import Papers
 # Create your views here.
 
 
 def sourcepage(request, name):
-    source_search_result_data = Candidate.objects.filter(name = name)
+    source_search_result_data = Papers.objects.filter(candidate_name = name)
     return render(request, "sourcepage/sourcepage.html", {"source_data":source_search_result_data})
     
         

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Papers List</title>
+    <!-- Optional: Add some basic CSS for styling -->
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: sans-serif;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Papers Database</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Candidate Name</th>
+                <th>NED Name</th>
+                <th>Paper Link</th>
+                <th>Model Params</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for paper in papers %}
+                <tr>
+                    <td>{{ paper.paper_id }}</td>
+                    <td>{{ paper.candidate_name|default:"-" }}</td>
+                    <td>{{ paper.ned_name|default:"-" }}</td>
+                    <td>
+                        {% if paper.paper_link %}
+                            <a href="{{ paper.paper_link }}" target="_blank">View Paper</a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if paper.model_param_link %}
+                            <a href="{{ paper.model_param_link }}" target="_blank">View Params</a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ paper.notes|default:"-" }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center;">No papers found in the database.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>
