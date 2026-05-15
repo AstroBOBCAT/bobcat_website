@@ -4,5 +4,5 @@ from . import views
 
 
 urlpatterns = [
-	path('', views.papers_list, name='main-page')
+	path('', views.binary_model_list, name='main-page')
 ]

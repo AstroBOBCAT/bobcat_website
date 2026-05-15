@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Models Overview</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+    <h2>Binary Model Data</h2>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Paper</th>
+                    <th>Candidate Name</th>
+                    <th>Eccentricity</th>
+                    <th>M1</th>
+                    <th>M2</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in binary_models %}
+                    <tr>
+                        <td>{{ model.sheet_id}}</td>
+                        <td>{{ model.paper }}</td>
+                        <td>{{ model.candidate_name.candidate_name }}</td>
+                        <td>{{ model.eccentricity }}</td>
+                        <td>{{ model.m1 }}</td>
+                        <td>{{ model.m2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center;">No binary models found in the database.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

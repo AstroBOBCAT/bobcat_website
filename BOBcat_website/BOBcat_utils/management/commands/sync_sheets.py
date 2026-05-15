@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 # Import your sync function from the previous step
 from BOBcat_utils import ingestion
+import traceback
 
 class Command(BaseCommand):
     help = 'Pulls data from a public Google Sheet and updates the PSQL database'
@@ -9,6 +10,8 @@ class Command(BaseCommand):
         self.stdout.write('Starting Google Sheet sync...')
         try:
             ingestion.sync_sheet_to_postgres()
+            ingestion.sync_binary_models()
             self.stdout.write(self.style.SUCCESS('Successfully synced data!'))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Sync failed: {e}'))
+            traceback.print_exc()

@@ -3,16 +3,22 @@ from django.db import models
 
 class Papers(models.Model):
     paper_id = models.AutoField(primary_key=True)
-    paper_link = models.URLField()
+    paper_link = models.URLField(unique=True)
     candidate_name = models.CharField(max_length=100, blank=True, null=True)
     ned_name = models.CharField(max_length=100, blank=True, null=True)
-    model_param_link = models.URLField()
+    model_param_link = models.URLField(unique=True)
     notes = models.CharField(max_length=500, blank=True, null=True)
 
 class BinaryModel(models.Model):
-    binary_model_id = models.IntegerField(primary_key=True)
+    model_param_link = models.ForeignKey(
+        'Papers',
+        on_delete=models.CASCADE,
+        to_field='model_param_link',
+        db_column='model_param_link',
+        primary_key=True,  # Makes this field the Primary Key
+    )
+    sheet_id = models.CharField(max_length=100)
     paper = models.CharField(max_length=200, blank=True, null=True)
-    candidate_name = models.ForeignKey('Candidate', models.DO_NOTHING, db_column='candidate_name', blank=True, null=True)
     eccentricity = models.FloatField(blank=True, null=True)
     m1 = models.FloatField(blank=True, null=True)
     m2 = models.FloatField(blank=True, null=True)
@@ -26,9 +32,9 @@ class BinaryModel(models.Model):
     period_epoch = models.FloatField(blank=True, null=True)
     orb_freq = models.FloatField(blank=True, null=True)
     orb_period = models.FloatField(blank=True, null=True)
-    summary = models.CharField(max_length=500, blank=True, null=True)
-    caveats = models.CharField(max_length=100, blank=True, null=True)
-    ext_proj = models.CharField(max_length=100, blank=True, null=True)
+    summary = models.TextField( blank=True, null=True)
+    caveats = models.TextField(max_length=500, blank=True, null=True)
+    ext_proj = models.TextField(max_length=100, blank=True, null=True)
     gw_strain = models.FloatField(blank=True, null=True)
     gw_freq = models.FloatField(blank=True, null=True)
     gw_strain_err = models.FloatField(blank=True, null=True)
@@ -36,7 +42,7 @@ class BinaryModel(models.Model):
 
 #Compacted table describing evidence types.
 class Evidence(models.Model):
-    binary_model_id = models.ForeignKey(to='BinaryModel', db_column='binary_model_id', on_delete=models.CASCADE, unique=False)
+    # binary_model_id = models.ForeignKey(to='BinaryModel', db_column='sheet_id', on_delete=models.CASCADE, unique=False)
     type = models.CharField(max_length=100, blank=True, null=True)
     note = models.CharField(max_length=500, blank=True, null=True)
     wavelength = models.CharField(max_length=25, blank=True, null=True)

@@ -1,13 +1,13 @@
 from django.shortcuts import render
-from sourcepage.models import Papers
+from sourcepage.models import BinaryModel
 
 
-def papers_list(request):
-    # Fetch all papers from the database
-    all_papers = Papers.objects.all()
+def binary_model_list(request):
+    # Retrieve all binary models from the database
+    # select_related is used to optimize the query since candidate_name is a ForeignKey
+    binary_models = BinaryModel.objects.select_related('candidate_name').all()
 
-    # Pass them to the template as 'papers'
     context = {
-        'papers': all_papers
+        'binary_models': binary_models
     }
-    return render(request, 'mainpage/papers_list.html', context)
+    return render(request, 'binary_model_list.html', context)

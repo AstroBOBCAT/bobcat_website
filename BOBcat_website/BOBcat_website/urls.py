@@ -21,5 +21,5 @@ urlpatterns = [
 	path('', include('mainpage.urls')),
 	path('candidate/', include('sourcepage.urls')),
 	path('about-page', include('aboutpage.urls')),
-	path('search-page/', include('search.urls')),
+	# path('search-page/', include('search.urls')),
 ]
