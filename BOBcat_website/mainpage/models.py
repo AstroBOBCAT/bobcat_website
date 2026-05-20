@@ -1,30 +1,34 @@
 from django.db import models
-#Made by Dominic. KEEEP KEEP KEEP
 
-#TODO make candidate table
+# Made by Dominic. KEEEP KEEP KEEP
+
+# TODO make candidate table
 
 """
 class Candidates(models.Model):
     redshift = models.FloatField(blank=True, null=True)
-    
+
 
 """
+
+
 class Papers(models.Model):
     paper_id = models.AutoField(primary_key=True)
     paper_link = models.URLField(unique=True)
     candidate_name = models.CharField(max_length=100, blank=True, null=True)
     ned_name = models.CharField(max_length=100, blank=True, null=True)
-    model_param_link = models.URLField(unique=True) #TODO primary key
+    model_param_link = models.URLField(unique=True)  # TODO primary key
     notes = models.CharField(max_length=500, blank=True, null=True)
 
-class BinaryModel(models.Model): #
+
+class BinaryModel(models.Model):  #
     model_param_link = models.ForeignKey(
         'Papers',
         on_delete=models.CASCADE,
         to_field='model_param_link',
         db_column='model_param_link',
         primary_key=True,  # Makes this field the Primary Key
-    ) #TODO change to one to one field
+    )  # TODO change to one to one field
     sheet_id = models.CharField(max_length=100)
     paper = models.CharField(max_length=200, blank=True, null=True)
     eccentricity = models.FloatField(blank=True, null=True)
@@ -40,7 +44,7 @@ class BinaryModel(models.Model): #
     period_epoch = models.FloatField(blank=True, null=True)
     orb_freq = models.FloatField(blank=True, null=True)
     orb_period = models.FloatField(blank=True, null=True)
-    summary = models.TextField( blank=True, null=True)
+    summary = models.TextField(blank=True, null=True)
     caveats = models.TextField(max_length=500, blank=True, null=True)
     ext_proj = models.TextField(max_length=100, blank=True, null=True)
     gw_strain = models.FloatField(blank=True, null=True)
@@ -48,9 +52,11 @@ class BinaryModel(models.Model): #
     gw_strain_err = models.FloatField(blank=True, null=True)
     gw_freq_err = models.FloatField(blank=True, null=True)
 
-#Compacted table describing evidence types.
+
+# Compacted table describing evidence types.
 class Evidence(models.Model):
-    model_param_link = models.ForeignKey('Papers', on_delete=models.CASCADE, to_field='model_param_link', db_column='model_param_link')
+    model_param_link = models.ForeignKey('Papers', on_delete=models.CASCADE, to_field='model_param_link',
+                                         db_column='model_param_link')
     type = models.CharField(max_length=100, blank=True, null=True)
     note = models.CharField(max_length=500, blank=True, null=True)
     waveband = models.CharField(max_length=25, blank=True, null=True)

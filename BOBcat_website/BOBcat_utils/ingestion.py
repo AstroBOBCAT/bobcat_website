@@ -103,6 +103,7 @@ def get_google_sheet_data(url):
 def sync_binary_models():
     # Loop through all papers
     objects_to_create = []
+    evidence_to_create=[]
     csv_links = []
     for paper in Papers.objects.all():
 
@@ -126,10 +127,9 @@ def sync_binary_models():
         records = df.set_index("Name")["Value"].to_dict()
         objects_to_create.append(
             BinaryModel(
-                model_param_link=csv_url,
+                model_param_link=paper,
                 sheet_id= name,
                 paper=records.get("paper link",None),
-                candidate_name=records.get("source_name",None),
                 eccentricity=records.get("eccentricity",None),
                 m1 = records.get("m1",None),
                 m2 = records.get("m2",None),
@@ -147,6 +147,19 @@ def sync_binary_models():
                 caveats= records.get("Caveats",None),
             )
         )
+        for i in ['','2','3','4']:
+            if records.get("evidence type"+i) is not None and \
+                records.get("evidence type note"+i) is not None and \
+                records.get("evidence type waveband"+i) is not None:
+                evidence_to_create.append(
+                    Evidence(
+                        model_param_link=paper,
+                        type = records.get("evidence type"+i),
+                        note = records.get("evidence type note"+i),
+                        waveband = records.get("evidence type waveband"+i),
+                    )
+                )
+
         #loop end
 
     # Save to PostgreSQL using bulk operations

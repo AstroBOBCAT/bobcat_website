@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Binary Model Search{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static 'sourcepage/sourcepage.css' %}" />
+{% endblock %}
+
+{% block content %}
+<main class="query-page">
+  <header class="query-header">
+    <div>
+      <p class="eyebrow">BOBcat Database</p>
+      <h1>Binary Model Query</h1>
+      <p class="header-copy">
+        Search model parameters with optional text filters, exact values, or numeric ranges.
+      </p>
+    </div>
+    <nav class="header-actions" aria-label="Page navigation">
+      <a class="nav-link" href="/">Home</a>
+      <a class="about-button" href="/about-page">About</a>
+    </nav>
+  </header>
+
+  <section class="query-panel" aria-labelledby="query-form-title">
+    <div class="panel-heading">
+      <div>
+        <h2 id="query-form-title">Search Parameters</h2>
+        <p>Leave any field blank to omit it from the query.</p>
+      </div>
+      <a class="reset-link" href="{% url 'binary-model-search' %}">Reset</a>
+    </div>
+
+    <form class="query-form" method="get">
+      <fieldset>
+        <legend>Candidate Details</legend>
+        <div class="form-grid compact-grid">
+          <label>
+            Candidate Name
+            <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
+          </label>
+          <label>
+            NED Name
+            <input type="search" name="ned_name" value="{{ request.GET.ned_name }}" placeholder="Resolved source name">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Text Fields</legend>
+        <div class="form-grid">
+          {% for field in text_fields %}
+            <label>
+              {{ field.label }}
+              <input type="search" name="{{ field.name }}" placeholder="Contains...">
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Numeric Parameters</legend>
+        <div class="range-grid">
+          {% for field in float_fields %}
+            <div class="range-group">
+              <span>{{ field.label }}</span>
+              <label>
+                Exact
+                <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+              </label>
+              <label>
+                Min
+                <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+              </label>
+              <label>
+                Max
+                <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="submit">Run Query</button>
+        <a href="{% url 'binary-model-search' %}">Clear filters</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="results-section" aria-labelledby="results-title">
+    <div class="results-heading">
+      <div>
+        <p class="eyebrow">Results</p>
+        <h2 id="results-title">
+          {% if has_query %}
+            {{ results|length }} matching model{{ results|length|pluralize }}
+          {% else %}
+            All binary models
+          {% endif %}
+        </h2>
+      </div>
+      <form method="get" class="download-form">
+        {% for key, value in request.GET.items %}
+          {% if key != "download" %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endif %}
+        {% endfor %}
+        <button type="submit" name="download" value="json">Download JSON</button>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Candidate</th>
+            <th>NED Name</th>
+            <th>Paper</th>
+            <th>m1</th>
+            <th>m2</th>
+            <th>q</th>
+            <th>Eccentricity</th>
+            <th>GW Strain</th>
+            <th>GW Frequency</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for model in results %}
+            <tr>
+              <td>{{ model.model_param_link.candidate_name|default:"-" }}</td>
+              <td>{{ model.model_param_link.ned_name|default:"-" }}</td>
+              <td>{{ model.paper|default:"-" }}</td>
+              <td>{{ model.m1|default:"-" }}</td>
+              <td>{{ model.m2|default:"-" }}</td>
+              <td>{{ model.q|default:"-" }}</td>
+              <td>{{ model.eccentricity|default:"-" }}</td>
+              <td>{{ model.gw_strain|default:"-" }}</td>
+              <td>{{ model.gw_freq|default:"-" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="9" class="empty-state">No matching models found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}
