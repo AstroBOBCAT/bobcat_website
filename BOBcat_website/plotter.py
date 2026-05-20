@@ -75,6 +75,69 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
     else:
         df = df1.merge(df2, how='inner', on='name').drop_duplicates()
 
+    # get units
+    if param1 == 'eccentricity' or param1 == 'q':
+        unit1 = 'unitless'
+    elif param1 in ['m1', 'm2', 'mtot', 'mc', 'mu']:
+        unit1 = 'Msun'
+    elif param1 == semimajor_axis or seperation:
+        unit1 = 'pc'
+    elif param1 == 'inclination':
+        unit1 = 'deg'
+    elif param1 == 'period_epoch':
+        unit1 = 'MJD'
+    elif param1 == 'orb_freq':
+        unit1 = 'Hz'
+    elif param1 == 'orb_period':
+        unit1 = 'yr'
+
+    if param2 == 'eccentricity' or param2 == 'q':
+        unit2 = 'unitless'
+    elif param2 in ['m1', 'm2', 'mtot', 'mc', 'mu']:
+        unit2 = 'Msun'
+    elif param2 == semimajor_axis or seperation:
+        unit2 = 'pc'
+    elif param2 == 'inclination':
+        unit2 = 'deg'
+    elif param2 == 'period_epoch':
+        unit2 = 'MJD'
+    elif param2 == 'orb_freq':
+        unit2 = 'Hz'
+    elif param2 == 'orb_period':
+        unit2 = 'yr'
+
+    if param3 != None:
+        if param3 == 'eccentricity' or param3 == 'q':
+            unit3 = 'unitless'
+        elif param3 in ['m1', 'm2', 'mtot', 'mc', 'mu']:
+            unit3 = 'Msun'
+        elif param3 == semimajor_axis or seperation:
+            unit3 = 'pc'
+        elif param3 == 'inclination':
+            unit3 = 'deg'
+        elif param3 == 'period_epoch':
+            unit3 = 'MJD'
+        elif param3 == 'orb_freq':
+            unit3 = 'Hz'
+        elif param3 == 'orb_period':
+            unit3 = 'yr'
+        
+    if color != None:
+        if color == 'eccentricity' or color == 'q':
+            unit_color = 'unitless'
+        elif color in ['m1', 'm2', 'mtot', 'mc', 'mu']:
+            unit_color = 'Msun'
+        elif color == semimajor_axis or seperation:
+            unit_color = 'pc'
+        elif color == 'inclination':
+            unit_color = 'deg'
+        elif color == 'period_epoch':
+            unit_color = 'MJD'
+        elif color == 'orb_freq':
+            unit_color = 'Hz'
+        elif color == 'orb_period':
+            unit_color = 'yr'
+
     # add z data if it exists
     if param3 != None:
         if no_duplicate_z == True:
@@ -104,9 +167,16 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
     
     # update the layout
     fig.update_layout(title='{} vs {}'.format(param1, param2))
-    fig.update_yaxes(title=param2)
-    fig.update_xaxes(title=param1)
-    
+    fig.update_yaxes(title=str(param2 + ' (' + unit2 + ')'))
+    fig.update_xaxes(title=str(param1 + ' (' + unit1 + ')'))
+    if param3 != None:
+        fig.update_layout(scene=dict(
+            xaxis=dict(title=str(param1 + ' (' + unit1 + ')')),
+            yaxis=dict(title=str(param2 + ' (' + unit2 + ')')),
+            zaxis=dict(title=str(param3 + ' (' + unit3 + ')'))))
+    if color != None:
+        fig.update_layout(coloraxis_colorbar=dict(title=str(color + ' (' + unit_color + ')')))
+
     # show the plot
     if saveto != None:
         fig.write_html(str(saveto)+'/'+str(param1)+'_'+str(param2)+'.html')
