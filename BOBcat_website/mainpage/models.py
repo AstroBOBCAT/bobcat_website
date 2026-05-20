@@ -11,7 +11,7 @@ class Candidates(models.Model):
 
 """
 
-
+#Models each row in the small ingestion list.
 class Papers(models.Model):
     paper_id = models.AutoField(primary_key=True)
     paper_link = models.URLField(unique=True)
@@ -20,7 +20,7 @@ class Papers(models.Model):
     model_param_link = models.URLField(unique=True)  # TODO primary key
     notes = models.CharField(max_length=500, blank=True, null=True)
 
-
+#Models each model_param sheet
 class BinaryModel(models.Model):  #
     model_param_link = models.ForeignKey(
         'Papers',

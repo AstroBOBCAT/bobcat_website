@@ -2,7 +2,8 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from .models import BinaryModel, Papers
 
-# Create your views here.
+#A simple prototype for the frontend. Don't worry about this structure its not representative of the final product.
+#Also if you want to replace this entire thing thats fine.
 
 FLOAT_FIELDS = [
     "eccentricity",
@@ -63,9 +64,9 @@ TEXT_FIELD_LABELS = {
 
 def sourcepage(request, name):
     source_search_result_data = Papers.objects.filter(candidate_name=name)
-    return render(request, "sourcepage/sourcepage.html", {"source_data": source_search_result_data})
+    return render(request, "mainpage/sourcepage.html", {"source_data": source_search_result_data})
 
-
+#The primary method that returns the information in the mainpage.
 def binary_model_search(request):
     results = BinaryModel.objects.select_related("model_param_link").all()
 
@@ -155,6 +156,6 @@ def binary_model_search(request):
             for field in TEXT_FIELDS
         ],
     }
-    return render(request, "sourcepage/binary_model_search.html", context)
+    return render(request, "mainpage/binary_model_search.html", context)
 
 

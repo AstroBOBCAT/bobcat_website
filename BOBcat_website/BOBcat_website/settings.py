@@ -33,8 +33,6 @@ ALLOWED_HOSTS = [h.strip() for h in _ALLOWED.split(',') if h.strip()]
 
 INSTALLED_APPS = [
     "mainpage",
-    "aboutpage",
-    "sourcepage",
     "BOBcat_utils",
     # "search",
     'django.contrib.admin',
@@ -61,11 +59,8 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            BASE_DIR / "templates",
             BASE_DIR / "mainpage" / "templates",
-            BASE_DIR / "aboutpage" / "templates",
-            BASE_DIR / "sourcepage" / "templates",
-            BASE_DIR / "search" / "templates"
+            BASE_DIR / "BOBcat_website" / "templates",
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -135,8 +130,7 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
     BASE_DIR / "mainpage" / "static",
-    BASE_DIR / "sourcepage" / "static",
-    BASE_DIR / "search" / "static"
+    BASE_DIR / "BOBcat_website" / "static",
 ]
 
 # Default primary key field type

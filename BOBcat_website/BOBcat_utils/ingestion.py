@@ -6,10 +6,11 @@ import pandas as pd
 import requests
 import io
 from django.db import transaction
-from sourcepage.models import Papers,BinaryModel,Evidence # Assuming Employee is imported from your models
+from mainpage.models import Papers,BinaryModel,Evidence # Assuming Employee is imported from your models
 
 #TODO Add timestamps!
 
+#Populates the Papers table from the given sheetID. Now with defaults :)
 def sync_sheet_to_postgres(sheet_id: str = "1SPegAdb2lL7o0oiMk7qSjwz9oCgkFJ3RCR7RMcworaw", gid : str ="0"):
     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
 
@@ -66,7 +67,7 @@ def sync_sheet_to_postgres(sheet_id: str = "1SPegAdb2lL7o0oiMk7qSjwz9oCgkFJ3RCR7
             ]
         )
 
-
+#Takes a url and extracts the sheet_id
 def get_google_sheet_data(url):
     # 1. Extract the sheet_id using a regular expression
     # Looks for "/d/" followed by any characters that aren't a slash
@@ -100,6 +101,8 @@ def get_google_sheet_data(url):
         print(f"HTTP Error: {err}. Ensure the sheet is set to 'Anyone with the link can view'.")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+#Iterates through the Papers table and creates 1 binary model for each model_param_link in the Papers table.
 def sync_binary_models():
     # Loop through all papers
     objects_to_create = []

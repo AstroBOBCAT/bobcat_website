@@ -9,7 +9,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write('Starting Google Sheet sync...')
         try:
+            #Populates Papers
             ingestion.sync_sheet_to_postgres()
+            #Populates binarymodels
             ingestion.sync_binary_models()
             self.stdout.write(self.style.SUCCESS('Successfully synced data!'))
         except Exception as e:

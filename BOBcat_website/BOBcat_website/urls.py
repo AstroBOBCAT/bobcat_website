@@ -17,11 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-	path('admin/', admin.site.urls), #TODO remove admin
-	path('', include('mainpage.urls')),
-	path('candidate/', include('sourcepage.urls')),
-	path('about-page', include('aboutpage.urls')),
-	# path('search-page/', include('search.urls')),
+	path('', include('mainpage.urls'))
 ]
 
 """"
