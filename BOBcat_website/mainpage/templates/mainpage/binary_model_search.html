@@ -51,7 +51,7 @@
         <legend>Text Fields</legend>
         <div class="form-grid">
           {% for field in text_fields %}
-            <label>
+            <label data-tooltip="{{ field.help_text }}">
               {{ field.label }}
               <input type="search" name="{{ field.name }}" placeholder="Contains...">
             </label>
@@ -63,7 +63,7 @@
         <legend>Numeric Parameters</legend>
         <div class="range-grid">
           {% for field in float_fields %}
-            <div class="range-group">
+            <div class="range-group" data-tooltip="{{ field.help_text }}">
               <span>{{ field.label }}</span>
               <label>
                 Exact

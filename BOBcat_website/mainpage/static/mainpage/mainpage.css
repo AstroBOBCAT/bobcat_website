@@ -300,3 +300,27 @@ td {
 		grid-template-columns: 1fr;
 	}
 }
+
+[data-tooltip] { position: relative; }
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 5px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 280px;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+}
+
+[data-tooltip]:hover::after { opacity: 1; }

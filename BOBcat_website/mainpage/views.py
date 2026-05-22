@@ -148,11 +148,19 @@ def binary_model_search(request):
         "results": results,
         "has_query": has_query,
         "float_fields": [
-            {"name": field, "label": FLOAT_FIELD_LABELS[field]}
+            {
+                "name": field,
+                "label": FLOAT_FIELD_LABELS[field],
+                "help_text": BinaryModel._meta.get_field(field).help_text,
+            }
             for field in FLOAT_FIELDS
         ],
         "text_fields": [
-            {"name": field, "label": TEXT_FIELD_LABELS[field]}
+            {
+                "name": field,
+                "label": TEXT_FIELD_LABELS[field],
+                "help_text": BinaryModel._meta.get_field(field).help_text,
+            }
             for field in TEXT_FIELDS
         ],
     }

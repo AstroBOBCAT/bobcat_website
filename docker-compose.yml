@@ -20,9 +20,9 @@ services:
     build: ./BOBcat_website/
     restart: always
     # Use the Django development server for auto-reloading
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8001
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       # Maps your local code to the container's working directory.
       # IMPORTANT: Change '/app' to whatever WORKDIR is set in your Dockerfile!

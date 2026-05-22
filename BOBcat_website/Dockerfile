@@ -31,4 +31,4 @@ EXPOSE 8000
 
 # Default command to run the development server
 # Note: For production, you should replace this with a WSGI server like gunicorn
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8001"]
