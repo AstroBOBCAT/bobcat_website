@@ -80,7 +80,7 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
         unit1 = 'unitless'
     elif param1 in ['m1', 'm2', 'mtot', 'mc', 'mu']:
         unit1 = 'Msun'
-    elif param1 == semimajor_axis or seperation:
+    elif param1 == 'semimajor_axis' or param1 == 'seperation':
         unit1 = 'pc'
     elif param1 == 'inclination':
         unit1 = 'deg'
@@ -95,7 +95,7 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
         unit2 = 'unitless'
     elif param2 in ['m1', 'm2', 'mtot', 'mc', 'mu']:
         unit2 = 'Msun'
-    elif param2 == semimajor_axis or seperation:
+    elif param2 == 'semimajor_axis' or param2 == 'seperation':
         unit2 = 'pc'
     elif param2 == 'inclination':
         unit2 = 'deg'
@@ -111,7 +111,7 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
             unit3 = 'unitless'
         elif param3 in ['m1', 'm2', 'mtot', 'mc', 'mu']:
             unit3 = 'Msun'
-        elif param3 == semimajor_axis or seperation:
+        elif param3 == 'semimajor_axis' or param3 == 'seperation':
             unit3 = 'pc'
         elif param3 == 'inclination':
             unit3 = 'deg'
@@ -127,7 +127,7 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
             unit_color = 'unitless'
         elif color in ['m1', 'm2', 'mtot', 'mc', 'mu']:
             unit_color = 'Msun'
-        elif color == semimajor_axis or seperation:
+        elif color == 'semimajor_axis' or color == 'seperation':
             unit_color = 'pc'
         elif color == 'inclination':
             unit_color = 'deg'
