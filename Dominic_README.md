@@ -1,17 +1,14 @@
 # Dominic's readme
-## Docker introduction
-When people started developing applications (especially websites) they ran into the issue of 
-establishing the same environment in multiple locations. Docker containers solved this issue by providing 
-easily deployable, repeatable, and deterministic environments. As these containers became more popular, 
-people began using many containers at once. So Docker created Docker Swarms, collections of related containers
-that could be booted up and down in unison. This swarm of container(s) is dictated by the 
-docker-compose.yml which dictates the services and their relationship with each other.
+This branch represents the website inside of a docker container.
+Docker containers provide deterministic repeatable environments that are good for debugging and development.
+Usually these docker layers are shed once the project is deployed as they slow down the application.
 
-I am using one such docker swarm which has a service for the PSQL server as well as one for the backend service.
-There is also pgadmin which I couldn't figure out how to get to work. But you might find it useful.
+I decided to use docker containers for this project primarily so that the Postgresql server did not run on my
+local machine. Everything is neatly contained away from all of the rest of the projects I have on my device.
+
 
 ## How to use docker compose
-All commands must be done on the same level as the docker-compose.yml file.
+All `docker compose` commands must be done on the same level as the docker-compose.yml file.
 
 Starting the docker swarm:`docker compose up`
 
@@ -20,6 +17,13 @@ Starting the docker swarm after changing something: `docker compose up --build`
 Starting the docker swarm as a background process: `docker compose up -d` or `docker compose up --build -d`
 
 Stopping the docker swarm: `docker compose down` or CTRL-c
+
+### Troubleshooting
+Could not bind to port. Some of the docker container ports must be bound to an outside port.
+If you have something running on one of those already, it cannot start. To fix this, either 
+track down the running process or change the outside port of the specific container.
+
+For example pgadmin's "8080:80" to "8081:80"in the docker-compose
 
 ## Other commands
 Django syncs its models with the PSQL server through the use of migrations. These commands should suffice
@@ -30,3 +34,22 @@ Enumerate schema changes: `docker compose exec backend python manage.py makemigr
 Apply schema changes: `docker compose exec backend python manage.py migrate`
 
 Pull data from google sheets via sync_sheets: `docker compose exec backend python manage.py sync_sheets`
+
+Enter psql server (use values in .dbinfo): `docker compose exec db psql -U <user> -d <database`
+
+## FAQ
+
+I modified something and its not showing up when I run the docker compose?  
+The docker compose needs to be rebuilt, run `docker compose up --build`
+
+I closed my terminal and now it won't run?  
+The old session might still be running. Try `docker compose down`
+
+I added some new methods but it is giving me long python errors? It works locally.  
+Update the requirements.txt file and then run `docker compose up --build` to apply the changes.
+
+I changed one of the models.py and rebuilt it but the changes aren't applying?  
+Run the `makemigrations and migrate` commands. Should apply your changes.
+
+Same thing as above but I changed a foreign key, primary key, or added/removed a table. Migrations don't work.  
+💀 You are going to have to go on a long journey through stackoverflow or AI to fix this one.
