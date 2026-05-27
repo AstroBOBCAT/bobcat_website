@@ -24,69 +24,83 @@
   </header>
 
   <section class="query-panel" aria-labelledby="query-form-title">
-    <div class="panel-heading">
-      <div>
-        <h2 id="query-form-title">Search Parameters</h2>
-        <p>Leave any field blank to omit it from the query.</p>
-      </div>
-      <a class="reset-link" href="{% url 'binary-model-search' %}">Reset</a>
-    </div>
-
-    <form class="query-form" method="get">
-      <fieldset>
-        <legend>Candidate Details</legend>
-        <div class="form-grid compact-grid">
-          <label>
-            Candidate Name
-            <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
-          </label>
-          <label>
-            NED Name
-            <input type="search" name="ned_name" value="{{ request.GET.ned_name }}" placeholder="Resolved source name">
-          </label>
+    <details class="query-accordion" {% if has_query %}open{% endif %}>
+      <summary class="panel-heading">
+        <div>
+          <h2 id="query-form-title">Search Parameters</h2>
+          <p>Leave any field blank to omit it from the query.</p>
         </div>
-      </fieldset>
+        <a class="reset-link" href="{% url 'binary-model-search' %}" onclick="event.stopPropagation()">Reset</a>
+      </summary>
 
-      <fieldset>
-        <legend>Text Fields</legend>
-        <div class="form-grid">
-          {% for field in text_fields %}
-            <label data-tooltip="{{ field.help_text }}">
-              {{ field.label }}
-              <input type="search" name="{{ field.name }}" placeholder="Contains...">
+      <form class="query-form" method="get">
+        <fieldset>
+          <legend>Candidate Details</legend>
+          <div class="form-grid compact-grid">
+            <label>
+              Candidate Name
+              <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
             </label>
-          {% endfor %}
-        </div>
-      </fieldset>
+            <label>
+              NED Name
+              <input type="search" name="ned_name" value="{{ request.GET.ned_name }}" placeholder="Resolved source name">
+            </label>
+          </div>
+        </fieldset>
 
-      <fieldset>
-        <legend>Numeric Parameters</legend>
-        <div class="range-grid">
-          {% for field in float_fields %}
-            <div class="range-group" data-tooltip="{{ field.help_text }}">
-              <span>{{ field.label }}</span>
-              <label>
-                Exact
-                <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+        <fieldset>
+          <legend>Text Fields</legend>
+          <div class="form-grid">
+            {% for field in text_fields %}
+              <label data-tooltip="{{ field.help_text }}">
+                {{ field.label }}
+                <input type="search" name="{{ field.name }}" placeholder="Contains...">
               </label>
-              <label>
-                Min
-                <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
-              </label>
-              <label>
-                Max
-                <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
-              </label>
-            </div>
-          {% endfor %}
-        </div>
-      </fieldset>
+            {% endfor %}
+          </div>
+        </fieldset>
 
-      <div class="form-actions">
-        <button type="submit">Run Query</button>
-        <a href="{% url 'binary-model-search' %}">Clear filters</a>
-      </div>
-    </form>
+        <fieldset>
+          <legend>Numeric Parameters</legend>
+          <div class="range-grid">
+            {% for field in float_fields %}
+              <div class="range-group" data-tooltip="{{ field.help_text }}">
+                <span>{{ field.label }}</span>
+                <label>
+                  Exact
+                  <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                </label>
+                <label>
+                  Min
+                  <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                </label>
+                <label>
+                  Max
+                  <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Columns</legend>
+          <div class="col-picker">
+            {% for col in all_columns %}
+              <label class="col-check">
+                <input type="checkbox" name="cols" value="{{ col.key }}"{% if col.checked %} checked{% endif %}>
+                {{ col.label }}
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit">Run Query</button>
+          <a href="{% url 'binary-model-search' %}">Clear filters</a>
+        </div>
+      </form>
+    </details>
   </section>
 
   <section class="results-section" aria-labelledby="results-title">
@@ -95,7 +109,7 @@
         <p class="eyebrow">Results</p>
         <h2 id="results-title">
           {% if has_query %}
-            {{ results|length }} matching model{{ results|length|pluralize }}
+            {{ result_count }} matching model{{ result_count|pluralize }}
           {% else %}
             All binary models
           {% endif %}
@@ -115,33 +129,21 @@
       <table>
         <thead>
           <tr>
-            <th>Candidate</th>
-            <th>NED Name</th>
-            <th>Paper</th>
-            <th>m1</th>
-            <th>m2</th>
-            <th>q</th>
-            <th>Eccentricity</th>
-            <th>GW Strain</th>
-            <th>GW Frequency</th>
+            {% for col in active_columns %}
+              <th>{{ col.label }}</th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
-          {% for model in results %}
+          {% for row in rows %}
             <tr>
-              <td>{{ model.model_param_link.candidate_name|default:"-" }}</td>
-              <td>{{ model.model_param_link.ned_name|default:"-" }}</td>
-              <td>{{ model.paper|default:"-" }}</td>
-              <td>{{ model.m1|default:"-" }}</td>
-              <td>{{ model.m2|default:"-" }}</td>
-              <td>{{ model.q|default:"-" }}</td>
-              <td>{{ model.eccentricity|default:"-" }}</td>
-              <td>{{ model.gw_strain|default:"-" }}</td>
-              <td>{{ model.gw_freq|default:"-" }}</td>
+              {% for cell in row %}
+                <td>{{ cell }}</td>
+              {% endfor %}
             </tr>
           {% empty %}
             <tr>
-              <td colspan="9" class="empty-state">No matching models found.</td>
+              <td colspan="{{ active_columns|length }}" class="empty-state">No matching models found.</td>
             </tr>
           {% endfor %}
         </tbody>

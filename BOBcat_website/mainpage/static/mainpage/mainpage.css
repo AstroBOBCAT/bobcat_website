@@ -36,7 +36,7 @@
 }
 
 .header-copy,
-.panel-heading p {
+.query-accordion > summary p {
 	color: #52627a;
 	margin: 0;
 	max-width: 42rem;
@@ -87,7 +87,6 @@
 	overflow: hidden;
 }
 
-.panel-heading,
 .results-heading {
 	display: flex;
 	align-items: flex-start;
@@ -97,7 +96,7 @@
 	padding: 1.25rem 1.5rem;
 }
 
-.panel-heading h2,
+.query-accordion > summary h2,
 .results-heading h2 {
 	font-family: 'DM Sans', system-ui, sans-serif;
 	font-size: 1.25rem;
@@ -109,6 +108,41 @@
 	color: #1d4ed8;
 	padding: 0.55rem 0.8rem;
 	white-space: nowrap;
+}
+
+.query-accordion {
+	display: block;
+}
+
+.query-accordion > summary {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	border-bottom: 1px solid #e7ecf5;
+	padding: 1.25rem 1.5rem;
+	user-select: none;
+}
+
+.query-accordion > summary::-webkit-details-marker { display: none; }
+
+.query-accordion > summary::after {
+	content: "▾";
+	color: #52627a;
+	flex-shrink: 0;
+	font-size: 1rem;
+	margin-top: 0.35rem;
+	transition: transform 0.2s ease;
+}
+
+.query-accordion[open] > summary::after {
+	transform: rotate(-180deg);
+}
+
+.query-accordion > summary:hover::after {
+	color: #1d4ed8;
 }
 
 .query-form {
@@ -182,6 +216,30 @@
 .range-group span {
 	color: #172033;
 	grid-column: 1 / -1;
+}
+
+.col-picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1.25rem;
+}
+
+.col-check {
+	align-items: center;
+	color: #35445c;
+	display: flex;
+	font-size: 0.82rem;
+	font-weight: 700;
+	gap: 0.4rem;
+}
+
+.col-check input[type="checkbox"] {
+	accent-color: #1d4ed8;
+	border-radius: 3px;
+	height: 1rem;
+	min-height: unset;
+	padding: 0;
+	width: 1rem;
 }
 
 .form-actions {

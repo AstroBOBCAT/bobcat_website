@@ -5,6 +5,33 @@ from .models import BinaryModel, Papers
 #A simple prototype for the frontend. Don't worry about this structure its not representative of the final product.
 #Also if you want to replace this entire thing thats fine.
 
+ALL_COLUMNS = [
+    {"key": "candidate_name", "label": "Candidate",          "default": True},
+    {"key": "ned_name",       "label": "NED Name",           "default": True},
+    {"key": "paper",          "label": "Paper",              "default": True},
+    {"key": "sheet_id",       "label": "Sheet ID",           "default": False},
+    {"key": "m1",             "label": "m1",                 "default": True},
+    {"key": "m2",             "label": "m2",                 "default": True},
+    {"key": "mtot",           "label": "Total Mass",         "default": False},
+    {"key": "mc",             "label": "Chirp Mass",         "default": False},
+    {"key": "mu",             "label": "Reduced Mass",       "default": False},
+    {"key": "q",              "label": "Mass Ratio (q)",     "default": True},
+    {"key": "eccentricity",   "label": "Eccentricity",       "default": True},
+    {"key": "inclination",    "label": "Inclination",        "default": False},
+    {"key": "semimajor_axis", "label": "Semimajor Axis",     "default": False},
+    {"key": "seperation",     "label": "Separation",         "default": False},
+    {"key": "period_epoch",   "label": "Period Epoch",       "default": False},
+    {"key": "orb_freq",       "label": "Orbital Frequency",  "default": False},
+    {"key": "orb_period",     "label": "Orbital Period",     "default": False},
+    {"key": "gw_strain",      "label": "GW Strain",          "default": True},
+    {"key": "gw_freq",        "label": "GW Frequency",       "default": True},
+    {"key": "gw_strain_err",  "label": "GW Strain Error",    "default": False},
+    {"key": "gw_freq_err",    "label": "GW Frequency Error", "default": False},
+    {"key": "summary",        "label": "Summary",            "default": False},
+    {"key": "caveats",        "label": "Caveats",            "default": False},
+    {"key": "ext_proj",       "label": "External Project",   "default": False},
+]
+
 FLOAT_FIELDS = [
     "eccentricity",
     "m1",
@@ -106,7 +133,7 @@ def binary_model_search(request):
     if ned_name:
         results = results.filter(model_param_link__ned_name__icontains=ned_name)
 
-    has_query = any(value for value in request.GET.values())
+    has_query = any(v for k, v in request.GET.items() if k not in ("cols", "download"))
 
     if request.GET.get("download") == "json":
         data = [
@@ -144,9 +171,35 @@ def binary_model_search(request):
         response["Content-Disposition"] = 'attachment; filename="binary_model_query.json"'
         return response
 
+    default_keys = [col["key"] for col in ALL_COLUMNS if col["default"]]
+    selected_keys = request.GET.getlist("cols")
+    active_keys = selected_keys if selected_keys else default_keys
+    active_key_set = set(active_keys)
+    active_columns = [col for col in ALL_COLUMNS if col["key"] in active_key_set]
+
+    rows = []
+    for model in results:
+        row = []
+        for col in active_columns:
+            key = col["key"]
+            if key == "candidate_name":
+                val = model.model_param_link.candidate_name
+            elif key == "ned_name":
+                val = model.model_param_link.ned_name
+            else:
+                val = getattr(model, key, None)
+            row.append(val if val is not None and val != "" else "-")
+        rows.append(row)
+
     context = {
-        "results": results,
+        "rows": rows,
+        "result_count": len(rows),
         "has_query": has_query,
+        "active_columns": active_columns,
+        "all_columns": [
+            {**col, "checked": col["key"] in active_key_set}
+            for col in ALL_COLUMNS
+        ],
         "float_fields": [
             {
                 "name": field,
