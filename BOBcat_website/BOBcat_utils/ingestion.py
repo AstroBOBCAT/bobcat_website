@@ -11,7 +11,7 @@ from mainpage.models import Papers,BinaryModel,Evidence # Assuming Employee is i
 #TODO Add timestamps!
 
 #Populates the Papers table from the given sheetID. Now with defaults :)
-def sync_sheet_to_postgres(sheet_id: str = "1SPegAdb2lL7o0oiMk7qSjwz9oCgkFJ3RCR7RMcworaw", gid : str ="0"):
+def sync_sheet_to_postgres(sheet_id: str = "1DTFQ3KMg1qkonvCv6veT0TqLmC4hbdjUQ09_CQfVMoI", gid : str ="0"):
     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
 
     try:
@@ -29,9 +29,9 @@ def sync_sheet_to_postgres(sheet_id: str = "1SPegAdb2lL7o0oiMk7qSjwz9oCgkFJ3RCR7
         print(f"An error occurred: {e}")
 
     print(df.head()) #debug
-    # CRITICAL: Pandas parses empty CSV cells as NaN (float).
+    # CRITICAL: Pandas parses empty CSV cells as NaN.
     # We replace them with empty strings so Django CharFields don't crash.
-    df.fillna('', inplace=True)
+    # df.fillna('', inplace=True)
     # Returns True if any value in 'column_name' is a duplicate
     if df[df.columns[3]].duplicated().any():
         raise ValueError(f'Duplicate model links in ingested PAPER csv {csv_url}.\n'
@@ -46,7 +46,7 @@ def sync_sheet_to_postgres(sheet_id: str = "1SPegAdb2lL7o0oiMk7qSjwz9oCgkFJ3RCR7
             candidate_name=row[1],
             ned_name=row[2],
             model_param_link=row[3],
-            notes = row[4],
+            # notes = row[4],
         )
         for row in records
     ]
@@ -58,11 +58,11 @@ def sync_sheet_to_postgres(sheet_id: str = "1SPegAdb2lL7o0oiMk7qSjwz9oCgkFJ3RCR7
             objects_to_create,
             batch_size=1000,
             update_conflicts=True,
-            unique_fields=['paper_link'],  # The unique field that determines if it's a duplicate
+            unique_fields=['model_param_link'],  # The unique field that determines if it's a duplicate
             update_fields=[  # The fields to update if a duplicate is found
+                'paper_link',
                 'candidate_name',
                 'ned_name',
-                'model_param_link',
                 'notes'
             ]
         )

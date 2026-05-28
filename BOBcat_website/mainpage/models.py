@@ -13,21 +13,20 @@ class Candidates(models.Model):
 
 #Models each row in the small ingestion list.
 class Papers(models.Model):
-    paper_id = models.AutoField(primary_key=True)
-    paper_link = models.URLField(unique=True)
+    # paper_id = models.AutoField(primary_key=True)
+    paper_link = models.URLField()
     candidate_name = models.CharField(max_length=100, blank=True, null=True)
     ned_name = models.CharField(max_length=100, blank=True, null=True)
-    model_param_link = models.URLField(unique=True)  # TODO primary key
+    model_param_link = models.URLField(primary_key=True)  # TODO primary key
     notes = models.CharField(max_length=500, blank=True, null=True)
 
 #Models each model_param sheet
 class BinaryModel(models.Model):
-    model_param_link = models.ForeignKey(
+    model_param_link = models.OneToOneField(
         'Papers',
         on_delete=models.CASCADE,
         to_field='model_param_link',
         db_column='model_param_link',
-        primary_key=True,
     )
     sheet_id = models.CharField(max_length=100,
         help_text="Internal identifier linking this entry to its source spreadsheet")
