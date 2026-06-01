@@ -41,28 +41,28 @@ fig.add_trace(go.Scatter(
     y=mas_sep_vs_z['sep'],
     mode='lines',
     name='1 mas separation',
-    line=dict(dash='dash')
+    line=dict(dash='dash', color='orange')
 ))
 fig.add_trace(go.Scatter(
     x=ngVLA_res_1['z'],
     y=ngVLA_res_1['res'],
     mode='lines',
     name='ngVLA 93 GHz resolution',
-    line=dict(dash='dot')
+    line=dict(dash='dot', color='red')
 ))
 fig.add_trace(go.Scatter(
     x=ngVLA_res_2['z'],
     y=ngVLA_res_2['res'],
     mode='lines',
     name='ngVLA 2.4 GHz resolution',
-    line=dict(dash='dot')
+    line=dict(dash='dot', color='green')
 ))
 fig.add_trace(go.Scatter(
     x=vla_max['z'],
     y=vla_max['res'],
     mode='lines',
     name='VLA max resolution',
-    line=dict(dash='dot')
+    line=dict(dash='dot', color='blue')
 ))
 fig.update_xaxes(
     minorloglabels="complete",

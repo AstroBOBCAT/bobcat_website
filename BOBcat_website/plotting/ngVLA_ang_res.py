@@ -34,9 +34,9 @@ fig.add_trace(go.Scatter(
 
 # Horizontal lines
 hline_values = [
-    (0.0645e3, "VLA Max Resolution", "orange"),
-    (2.97, "ngVLA 2.4 GHz Resolution", "blue"),
-    (1, "1 mas", "green"),
+    (0.0645e3, "VLA Max Resolution", "blue"),
+    (2.97, "ngVLA 2.4 GHz Resolution", "green"),
+    (1, "1 mas", "orange"),
     (0.08, "ngVLA 93 GHz Resolution", "red")
 ]
 
