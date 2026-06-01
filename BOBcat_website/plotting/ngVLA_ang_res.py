@@ -17,7 +17,7 @@ z_sep_candidates = pd.merge(sep_candidates, z_candidates, left_on='candidate_nam
 # Compute angular separation
 z_sep_candidates['angular_separation'] = np.nan
 for i in range(len(z_sep_candidates['redshift'])):
-    z_sep_candidates.loc[i, 'angular_separation'] = z_sep_candidates['seperation'].iloc[i] * cosmo_calc(z_sep_candidates['redshift'].iloc[i])[2] / 1000
+    z_sep_candidates.loc[i, 'angular_separation'] = z_sep_candidates['seperation'].iloc[i] * cosmo_calc(z_sep_candidates['redshift'].iloc[i])[2]# / 1000
 
 # Create Plotly figure
 fig = go.Figure()
@@ -78,8 +78,6 @@ fig.update_yaxes(
 fig.update_layout(
     title="Redshift vs Angular Separation",
     legend=dict(title="Resolution Lines"),
-    width=1000,
-    height=700,
     font=dict(family="STIXGeneral, Times New Roman, serif")
 )
 

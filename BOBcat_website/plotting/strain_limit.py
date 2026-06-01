@@ -315,8 +315,6 @@ fig.update_yaxes(
 )
 
 fig.update_layout(
-    width=1000,
-    height=700,
     xaxis_range=[np.log10(min(strains['f_grav'])-0.2), max(xedges)-0.01],
 
     legend=dict(
