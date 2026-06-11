@@ -1,7 +1,8 @@
+import os
 import re
 from collections import defaultdict
 
-from django.db import connection
+from django.db import connections
 from django.db.utils import DatabaseError
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -16,6 +17,12 @@ _FORBIDDEN_SQL = re.compile(
 
 def _run_raw_query(query: str):
     """Execute a read-only raw query. Returns (columns, rows, error_str)."""
+    if not os.environ.get("READONLY_DB_PASSWORD"):
+        return None, None, (
+            "SQL queries are unavailable: the read-only database user is not configured.\n"
+            "Run `python manage.py setup_readonly_db_user` then set "
+            "READONLY_DB_USER and READONLY_DB_PASSWORD in your .db_info file and restart."
+        )
     if not re.match(r'\s*SELECT\b', query, re.IGNORECASE):
         return None, None, "Only SELECT statements are permitted."
     if _FORBIDDEN_SQL.search(query):
@@ -23,7 +30,7 @@ def _run_raw_query(query: str):
     if ";" in query:
         return None, None, "Multiple statements (semicolons) are not permitted."
     try:
-        with connection.cursor() as cursor:
+        with connections["readonly"].cursor() as cursor:
             cursor.execute(query)
             columns = [d[0] for d in cursor.description]
             rows = cursor.fetchmany(_MAX_SQL_ROWS)

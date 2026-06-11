@@ -86,11 +86,20 @@ DATABASES = {
         'NAME': os.environ.get('POSTGRES_DB', 'bobcat'),
         'USER': os.environ.get('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
-        # It's a good idea to default to 'db' or 'localhost' depending on your setup.
-        # In a standard docker-compose setup, the host is the name of the postgres service.
         'HOST': os.environ.get('POSTGRES_HOST', 'db'),
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
-    }
+    },
+    # Limited-privilege role used to execute user-submitted SQL queries.
+    # Run `python manage.py setup_readonly_db_user` once to create the role,
+    # then set READONLY_DB_USER / READONLY_DB_PASSWORD in your .db_info file.
+    'readonly': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'bobcat'),
+        'USER': os.environ.get('READONLY_DB_USER', 'bobcat_readonly'),
+        'PASSWORD': os.environ.get('READONLY_DB_PASSWORD', ''),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+    },
 }
 
 
