@@ -19,7 +19,8 @@ Starting the docker swarm as a background process: `docker compose up -d` or `do
 Stopping the docker swarm: `docker compose down` or CTRL-c
 
 ### Troubleshooting
-Could not bind to port. Some of the docker container ports must be bound to an outside port.
+Could not bind to port.  
+Some of the docker container ports must be bound to an outside port.
 If you have something running on one of those already, it cannot start. To fix this, either 
 track down the running process or change the outside port of the specific container.
 
@@ -36,6 +37,12 @@ Apply schema changes: `docker compose exec backend python manage.py migrate`
 Pull data from google sheets via sync_sheets: `docker compose exec backend python manage.py sync_sheets`
 
 Enter psql server (use values in .dbinfo): `docker compose exec db psql -U <user> -d <database`
+
+FULL HARD RESET psql server: `docker compose down --volumes`  
+Remove broken migrations: `rm BOBcat_website/<app_name(usually mainpage)>/migrations/00*`  
+Migrations are a record of changes you've made to models.py. If something weird is changed in models.py 
+migrations will try to replicate that and store it in your history until you delete it.  
+Then run the enumerate and apply schema commands: `see above`
 
 ## FAQ
 

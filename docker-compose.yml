@@ -7,15 +7,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     env_file:
       - .db_info
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "8080:80"
-    depends_on:
-      - db
   backend:
     build: ./BOBcat_website/
     restart: always

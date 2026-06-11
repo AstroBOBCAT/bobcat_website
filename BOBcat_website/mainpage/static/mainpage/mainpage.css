@@ -110,6 +110,86 @@
 	white-space: nowrap;
 }
 
+/* ── Mode tabs ── */
+.mode-tabs {
+	display: flex;
+	border-bottom: 1px solid #e7ecf5;
+}
+
+.mode-tab {
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: #52627a;
+	cursor: pointer;
+	font: inherit;
+	font-size: 0.88rem;
+	font-weight: 700;
+	margin-bottom: -1px;
+	padding: 0.85rem 1.25rem;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.mode-tab:hover {
+	color: #1d4ed8;
+}
+
+.mode-tab.active {
+	border-bottom-color: #1d4ed8;
+	color: #1d4ed8;
+}
+
+/* ── SQL panel ── */
+.sql-panel {
+	padding: 1.5rem;
+}
+
+.sql-hint {
+	color: #52627a;
+	font-size: 0.82rem;
+	margin: 0 0 1rem;
+}
+
+.sql-hint code {
+	background: #f0f4ff;
+	border-radius: 3px;
+	color: #1d4ed8;
+	font-size: 0.8rem;
+	padding: 0.1em 0.35em;
+}
+
+.sql-input {
+	border: 1px solid #cdd6e6;
+	border-radius: 6px;
+	color: #172033;
+	display: block;
+	font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+	font-size: 0.88rem;
+	line-height: 1.6;
+	min-height: 8rem;
+	padding: 0.75rem;
+	resize: vertical;
+	width: 100%;
+}
+
+.sql-input:focus {
+	border-color: #1d4ed8;
+	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14);
+	outline: none;
+}
+
+.sql-error {
+	background: #fff5f5;
+	border: 1px solid #fca5a5;
+	border-radius: 6px;
+	color: #b91c1c;
+	font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+	font-size: 0.82rem;
+	margin-top: 1rem;
+	padding: 0.75rem 1rem;
+	white-space: pre-wrap;
+}
+
 .query-accordion {
 	display: block;
 }
@@ -321,6 +401,32 @@ th {
 td {
 	color: #22304f;
 	font-size: 0.92rem;
+}
+
+.evidence-cell {
+	white-space: nowrap;
+}
+
+.evidence-tile-wrap {
+	display: inline-block;
+	margin: 0.1rem 0.2rem 0.1rem 0;
+	position: relative;
+	vertical-align: middle;
+}
+
+.evidence-tile {
+	border-radius: 4px;
+	display: block;
+	height: 2rem;
+	object-fit: contain;
+	width: 2rem;
+}
+
+.evidence-tile-wrap:hover .evidence-tile {
+	transform: scale(2.5);
+	transition: transform 0.15s ease;
+	position: relative;
+	z-index: 10;
 }
 
 .empty-state {

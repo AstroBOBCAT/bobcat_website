@@ -128,8 +128,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / "static",
-    BASE_DIR / "mainpage" / "static",
+    # Project-level static assets (e.g. base.css).
+    # App-level static files (mainpage/static/) are discovered automatically
+    # by AppDirectoriesFinder because 'mainpage' is in INSTALLED_APPS.
     BASE_DIR / "BOBcat_website" / "static",
 ]
 

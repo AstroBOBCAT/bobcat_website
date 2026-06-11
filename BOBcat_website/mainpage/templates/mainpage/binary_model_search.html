@@ -24,83 +24,125 @@
   </header>
 
   <section class="query-panel" aria-labelledby="query-form-title">
-    <details class="query-accordion" {% if has_query %}open{% endif %}>
-      <summary class="panel-heading">
-        <div>
-          <h2 id="query-form-title">Search Parameters</h2>
-          <p>Leave any field blank to omit it from the query.</p>
-        </div>
-        <a class="reset-link" href="{% url 'binary-model-search' %}" onclick="event.stopPropagation()">Reset</a>
-      </summary>
 
-      <form class="query-form" method="get">
-        <fieldset>
-          <legend>Candidate Details</legend>
-          <div class="form-grid compact-grid">
-            <label>
-              Candidate Name
-              <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
-            </label>
-            <label>
-              NED Name
-              <input type="search" name="ned_name" value="{{ request.GET.ned_name }}" placeholder="Resolved source name">
-            </label>
+    {# ── Mode toggle tabs ── #}
+    <div class="mode-tabs" role="tablist">
+      <button class="mode-tab" id="tab-form" role="tab" type="button">Form Search</button>
+      <button class="mode-tab" id="tab-sql"  role="tab" type="button">SQL / ADQL</button>
+    </div>
+
+    {# ── Form mode panel ── #}
+    <div id="panel-form">
+      <details class="query-accordion" {% if has_query and query_mode == "form" %}open{% endif %}>
+        <summary class="panel-heading">
+          <div>
+            <h2 id="query-form-title">Search Parameters</h2>
+            <p>Leave any field blank to omit it from the query.</p>
           </div>
-        </fieldset>
+          <a class="reset-link" href="{% url 'binary-model-search' %}" onclick="event.stopPropagation()">Reset</a>
+        </summary>
 
-        <fieldset>
-          <legend>Text Fields</legend>
-          <div class="form-grid">
-            {% for field in text_fields %}
-              <label data-tooltip="{{ field.help_text }}">
-                {{ field.label }}
-                <input type="search" name="{{ field.name }}" placeholder="Contains...">
+        <form class="query-form" method="get">
+          <fieldset>
+            <legend>Candidate Details</legend>
+            <div class="form-grid compact-grid">
+              <label>
+                Candidate Name
+                <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
               </label>
-            {% endfor %}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Numeric Parameters</legend>
-          <div class="range-grid">
-            {% for field in float_fields %}
-              <div class="range-group" data-tooltip="{{ field.help_text }}">
-                <span>{{ field.label }}</span>
-                <label>
-                  Exact
-                  <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
-                </label>
-                <label>
-                  Min
-                  <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
-                </label>
-                <label>
-                  Max
-                  <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
-                </label>
-              </div>
-            {% endfor %}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Columns</legend>
-          <div class="col-picker">
-            {% for col in all_columns %}
-              <label class="col-check">
-                <input type="checkbox" name="cols" value="{{ col.key }}"{% if col.checked %} checked{% endif %}>
-                {{ col.label }}
+              <label>
+                NED Name
+                <input type="search" name="ned_name" value="{{ request.GET.ned_name }}" placeholder="Resolved source name">
               </label>
-            {% endfor %}
-          </div>
-        </fieldset>
+            </div>
+          </fieldset>
 
-        <div class="form-actions">
-          <button type="submit">Run Query</button>
-          <a href="{% url 'binary-model-search' %}">Clear filters</a>
-        </div>
-      </form>
-    </details>
+          <fieldset>
+            <legend>Text Fields</legend>
+            <div class="form-grid">
+              {% for field in text_fields %}
+                <label data-tooltip="{{ field.help_text }}">
+                  {{ field.label }}
+                  <input type="search" name="{{ field.name }}" placeholder="Contains...">
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Numeric Parameters</legend>
+            <div class="range-grid">
+              {% for field in float_fields %}
+                <div class="range-group" data-tooltip="{{ field.help_text }}">
+                  <span>{{ field.label }}</span>
+                  <label>
+                    Exact
+                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                  </label>
+                  <label>
+                    Min
+                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                  </label>
+                  <label>
+                    Max
+                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Columns</legend>
+            <div class="col-picker">
+              {% for col in all_columns %}
+                <label class="col-check">
+                  <input type="checkbox" name="cols" value="{{ col.key }}"{% if col.checked %} checked{% endif %}>
+                  {{ col.label }}
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <button type="submit">Run Query</button>
+            <a href="{% url 'binary-model-search' %}">Clear filters</a>
+          </div>
+        </form>
+      </details>
+    </div>
+
+    {# ── SQL / ADQL mode panel ── #}
+    <div id="panel-sql">
+      <div class="sql-panel">
+        <p class="sql-hint">
+          Available tables:
+          <code>mainpage_binarymodel</code>,
+          <code>mainpage_papers</code>,
+          <code>mainpage_evidence</code>
+          &nbsp;·&nbsp; Only <code>SELECT</code> queries are permitted.
+          Results capped at 1000 rows.
+        </p>
+        <form method="get" class="sql-form">
+          <input type="hidden" name="mode" value="sql">
+          <textarea
+            class="sql-input"
+            name="raw_query"
+            rows="6"
+            placeholder="SELECT * FROM mainpage_binarymodel LIMIT 50"
+            spellcheck="false"
+          >{{ raw_query }}</textarea>
+          <div class="form-actions">
+            <button type="submit">Run Query</button>
+            <a href="?mode=sql">Clear</a>
+          </div>
+        </form>
+        {% if sql_error %}
+          <p class="sql-error">{{ sql_error }}</p>
+        {% endif %}
+      </div>
+    </div>
+
   </section>
 
   <section class="results-section" aria-labelledby="results-title">
@@ -109,46 +151,99 @@
         <p class="eyebrow">Results</p>
         <h2 id="results-title">
           {% if has_query %}
-            {{ result_count }} matching model{{ result_count|pluralize }}
+            {{ result_count }} row{{ result_count|pluralize }}
           {% else %}
             All binary models
           {% endif %}
         </h2>
       </div>
-      <form method="get" class="download-form">
-        {% for key, value in request.GET.items %}
-          {% if key != "download" %}
-            <input type="hidden" name="{{ key }}" value="{{ value }}">
-          {% endif %}
-        {% endfor %}
-        <button type="submit" name="download" value="json">Download JSON</button>
-      </form>
+      {% if query_mode == "form" %}
+        <form method="get" class="download-form">
+          {% for key, value in request.GET.items %}
+            {% if key != "download" %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endif %}
+          {% endfor %}
+          <button type="submit" name="download" value="json">Download JSON</button>
+        </form>
+      {% endif %}
     </div>
 
     <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            {% for col in active_columns %}
-              <th>{{ col.label }}</th>
+      {% if query_mode == "sql" %}
+        {# Dynamic table from raw query results #}
+        <table>
+          <thead>
+            <tr>
+              {% for col in sql_columns %}<th>{{ col }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sql_rows %}
+              <tr>{% for cell in row %}<td>{% if cell is not None %}{{ cell }}{% else %}-{% endif %}</td>{% endfor %}</tr>
+            {% empty %}
+              {% if not sql_error %}
+                <tr><td colspan="{{ sql_columns|length }}" class="empty-state">No rows returned.</td></tr>
+              {% endif %}
             {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
+          </tbody>
+        </table>
+      {% else %}
+        {# Form-mode table with evidence tiles #}
+        <table>
+          <thead>
             <tr>
-              {% for cell in row %}
-                <td>{{ cell }}</td>
-              {% endfor %}
+              {% for col in active_columns %}<th>{{ col.label }}</th>{% endfor %}
             </tr>
-          {% empty %}
-            <tr>
-              <td colspan="{{ active_columns|length }}" class="empty-state">No matching models found.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                {% for cell in row %}
+                  {% if cell.is_evidence %}
+                    <td class="evidence-cell">
+                      {% for tile in cell.tiles %}
+                        <span class="evidence-tile-wrap" data-tooltip="{{ tile.label }}">
+                          <img src="{% static tile.path %}" alt="{{ tile.label }}" class="evidence-tile">
+                        </span>
+                      {% empty %}-{% endfor %}
+                    </td>
+                  {% else %}
+                    <td>{{ cell.value }}</td>
+                  {% endif %}
+                {% endfor %}
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="{{ active_columns|length }}" class="empty-state">No matching models found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
     </div>
   </section>
 </main>
+
+<script>
+(function () {
+  const isSQL = "{{ query_mode }}" === "sql";
+  const tabForm   = document.getElementById('tab-form');
+  const tabSQL    = document.getElementById('tab-sql');
+  const panelForm = document.getElementById('panel-form');
+  const panelSQL  = document.getElementById('panel-sql');
+
+  function activate(mode) {
+    const sql = mode === 'sql';
+    panelSQL.hidden  = !sql;
+    panelForm.hidden = sql;
+    tabSQL.classList.toggle('active', sql);
+    tabForm.classList.toggle('active', !sql);
+  }
+
+  activate(isSQL ? 'sql' : 'form');
+  tabForm.addEventListener('click', () => activate('form'));
+  tabSQL.addEventListener('click',  () => activate('sql'));
+})();
+</script>
 {% endblock %}

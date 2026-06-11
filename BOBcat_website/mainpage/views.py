@@ -1,15 +1,66 @@
+import re
+from collections import defaultdict
+
+from django.db import connection
+from django.db.utils import DatabaseError
 from django.http import JsonResponse
 from django.shortcuts import render
-from .models import BinaryModel, Papers
+
+from .models import BinaryModel, Evidence, Papers
+
+_MAX_SQL_ROWS = 1000
+_FORBIDDEN_SQL = re.compile(
+    r'\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC(?:UTE)?|GRANT|REVOKE|COPY|VACUUM)\b',
+    re.IGNORECASE,
+)
+
+def _run_raw_query(query: str):
+    """Execute a read-only raw query. Returns (columns, rows, error_str)."""
+    if not re.match(r'\s*SELECT\b', query, re.IGNORECASE):
+        return None, None, "Only SELECT statements are permitted."
+    if _FORBIDDEN_SQL.search(query):
+        return None, None, "Query contains a forbidden keyword."
+    if ";" in query:
+        return None, None, "Multiple statements (semicolons) are not permitted."
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            columns = [d[0] for d in cursor.description]
+            rows = cursor.fetchmany(_MAX_SQL_ROWS)
+        return columns, rows, None
+    except DatabaseError as exc:
+        return None, None, str(exc)
 
 #A simple prototype for the frontend. Don't worry about this structure its not representative of the final product.
 #Also if you want to replace this entire thing thats fine.
+
+_TILE_IMAGES = [
+    "mainpage/tiles/tile_continuum_variability.png",
+    "mainpage/tiles/tile_gravitational_waves.png",
+    "mainpage/tiles/tile_host_galaxy.png",
+    "mainpage/tiles/tile_kpc_jet_morphology.png",
+    "mainpage/tiles/tile_pc_jet_morphology.png",
+    "mainpage/tiles/tile_resolved_pair_offset.png",
+    "mainpage/tiles/tile_spectral_continuum.png",
+    "mainpage/tiles/tile_spectral_line_snapshot.png",
+    "mainpage/tiles/tile_variable_spectral_line.png",
+]
+
+def _evidence_tile_path(type_str: str) -> str:
+    """Pick a tile image for an evidence type.
+
+    Uses a stable hash of the type string so the same type always maps to
+    the same tile, regardless of naming conventions in the data.
+    """
+    return _TILE_IMAGES[hash(type_str) % len(_TILE_IMAGES)]
+
 
 ALL_COLUMNS = [
     {"key": "candidate_name", "label": "Candidate",          "default": True},
     {"key": "ned_name",       "label": "NED Name",           "default": True},
     {"key": "paper",          "label": "Paper",              "default": True},
-    {"key": "sheet_id",       "label": "Sheet ID",           "default": False},
+    {"key": "evidence",       "label": "Evidence",           "default": True},
+    {"key": "sheet_id",       "label": "Sheet ID",           "default": False},#TODO remove
     {"key": "m1",             "label": "m1",                 "default": True},
     {"key": "m2",             "label": "m2",                 "default": True},
     {"key": "mtot",           "label": "Total Mass",         "default": False},
@@ -52,8 +103,10 @@ FLOAT_FIELDS = [
     "gw_freq_err",
 ]
 
+#TODO organize fields more.
+#TODO: Mass (m1-q), rotation (inclination-orb_period), GW (gw_strain-gw_freq_err),
 TEXT_FIELDS = [
-    "sheet_id",
+    "sheet_id", #TODO remove
     "paper",
     "summary",
     "caveats",
@@ -93,8 +146,69 @@ def sourcepage(request, name):
     source_search_result_data = Papers.objects.filter(candidate_name=name)
     return render(request, "mainpage/sourcepage.html", {"source_data": source_search_result_data})
 
+def _form_field_context():
+    """Static context needed to render the form panel in either query mode."""
+    return {
+        "float_fields": [
+            {
+                "name": field,
+                "label": FLOAT_FIELD_LABELS[field],
+                "help_text": BinaryModel._meta.get_field(field).help_text,
+            }
+            for field in FLOAT_FIELDS
+        ],
+        "text_fields": [
+            {
+                "name": field,
+                "label": TEXT_FIELD_LABELS[field],
+                "help_text": BinaryModel._meta.get_field(field).help_text,
+            }
+            for field in TEXT_FIELDS
+        ],
+        "all_columns": [
+            {**col, "checked": col["default"]}
+            for col in ALL_COLUMNS
+        ],
+    }
+
+
 #The primary method that returns the information in the mainpage.
 def binary_model_search(request):
+    raw_query = request.GET.get("raw_query", "").strip()
+    sql_mode = raw_query or request.GET.get("mode") == "sql"
+
+    if sql_mode and not raw_query:
+        # SQL tab active but no query yet — show empty SQL panel
+        context = {
+            **_form_field_context(),
+            "query_mode": "sql",
+            "raw_query": "",
+            "sql_columns": [],
+            "sql_rows": [],
+            "sql_error": None,
+            "result_count": 0,
+            "has_query": False,
+            "active_columns": [],
+            "rows": [],
+        }
+        return render(request, "mainpage/binary_model_search.html", context)
+
+    if raw_query:
+        sql_columns, sql_rows, sql_error = _run_raw_query(raw_query)
+        context = {
+            **_form_field_context(),
+            "query_mode": "sql",
+            "raw_query": raw_query,
+            "sql_columns": sql_columns or [],
+            "sql_rows": sql_rows or [],
+            "sql_error": sql_error,
+            "result_count": len(sql_rows) if sql_rows else 0,
+            "has_query": True,
+            "active_columns": [],
+            "rows": [],
+        }
+        return render(request, "mainpage/binary_model_search.html", context)
+
     results = BinaryModel.objects.select_related("model_param_link").all()
 
     for field in TEXT_FIELDS:
@@ -177,45 +291,56 @@ def binary_model_search(request):
     active_key_set = set(active_keys)
     active_columns = [col for col in ALL_COLUMNS if col["key"] in active_key_set]
 
+    # Materialise queryset once so we can reuse the list for evidence lookup
+    result_list = list(results)
+
+    # Build evidence map in a single DB query (avoids N+1)
+    evidence_col_active = "evidence" in active_key_set
+    evidence_map: dict[str, list[dict]] = defaultdict(list)
+    if evidence_col_active:
+        paper_ids = [m.model_param_link_id for m in result_list]
+        for ev in Evidence.objects.filter(
+            model_param_link_id__in=paper_ids
+        ).values("model_param_link_id", "type"):
+            if ev["type"]:
+                evidence_map[ev["model_param_link_id"]].append({
+                    "path": _evidence_tile_path(ev["type"]),
+                    "label": ev["type"],
+                })
+
     rows = []
-    for model in results:
+    for model in result_list:
         row = []
         for col in active_columns:
             key = col["key"]
-            if key == "candidate_name":
+            if key == "evidence":
+                row.append({
+                    "is_evidence": True,
+                    "tiles": evidence_map.get(model.model_param_link_id, []),
+                })
+            elif key == "candidate_name":
                 val = model.model_param_link.candidate_name
+                row.append({"is_evidence": False, "value": val or "-"})
             elif key == "ned_name":
                 val = model.model_param_link.ned_name
+                row.append({"is_evidence": False, "value": val or "-"})
             else:
                 val = getattr(model, key, None)
-            row.append(val if val is not None and val != "" else "-")
+                row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
         rows.append(row)
 
+    form_ctx = _form_field_context()
+    form_ctx["all_columns"] = [
+        {**col, "checked": col["key"] in active_key_set}
+        for col in ALL_COLUMNS
+    ]
     context = {
+        **form_ctx,
+        "query_mode": "form",
         "rows": rows,
         "result_count": len(rows),
         "has_query": has_query,
         "active_columns": active_columns,
-        "all_columns": [
-            {**col, "checked": col["key"] in active_key_set}
-            for col in ALL_COLUMNS
-        ],
-        "float_fields": [
-            {
-                "name": field,
-                "label": FLOAT_FIELD_LABELS[field],
-                "help_text": BinaryModel._meta.get_field(field).help_text,
-            }
-            for field in FLOAT_FIELDS
-        ],
-        "text_fields": [
-            {
-                "name": field,
-                "label": TEXT_FIELD_LABELS[field],
-                "help_text": BinaryModel._meta.get_field(field).help_text,
-            }
-            for field in TEXT_FIELDS
-        ],
     }
     return render(request, "mainpage/binary_model_search.html", context)
 

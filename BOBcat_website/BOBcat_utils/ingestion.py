@@ -151,6 +151,7 @@ def sync_binary_models():
             )
         )
         for i in ['','2','3','4']:
+            #TODO change to not Nan
             if records.get("evidence type"+i) is not None and \
                 records.get("evidence type note"+i) is not None and \
                 records.get("evidence type waveband"+i) is not None:
@@ -198,4 +199,8 @@ def sync_binary_models():
                 # Do NOT include model_param_link in update_fields
             ]
         )
+        Evidence.objects.bulk_create(
+            evidence_to_create,
+            batch_size=1000,
 
+        )
