@@ -28,7 +28,8 @@
     {# ── Mode toggle tabs ── #}
     <div class="mode-tabs" role="tablist">
       <button class="mode-tab" id="tab-form" role="tab" type="button">Form Search</button>
-      <button class="mode-tab" id="tab-sql"  role="tab" type="button">SQL / ADQL</button>
+      <button class="mode-tab" id="tab-sql"  role="tab" type="button">SQL</button>
+      <button class="mode-tab" id="tab-adql" role="tab" type="button">ADQL</button>
     </div>
 
     {# ── Form mode panel ── #}
@@ -112,32 +113,57 @@
       </details>
     </div>
 
-    {# ── SQL / ADQL mode panel ── #}
+    {# ── SQL panel ── #}
     <div id="panel-sql">
       <div class="sql-panel">
         <p class="sql-hint">
-          Available tables:
-          <code>mainpage_binarymodel</code>,
-          <code>mainpage_papers</code>,
-          <code>mainpage_evidence</code>
-          &nbsp;·&nbsp; Only <code>SELECT</code> queries are permitted.
-          Results capped at 1000 rows.
+          Standard PostgreSQL SQL &nbsp;·&nbsp; Only <code>SELECT</code> permitted &nbsp;·&nbsp; Results capped at 1 000 rows.
+          <br>Tables: <code>mainpage_binarymodel</code>, <code>mainpage_papers</code>, <code>mainpage_evidence</code>
         </p>
         <form method="get" class="sql-form">
           <input type="hidden" name="mode" value="sql">
           <textarea
             class="sql-input"
-            name="raw_query"
+            name="sql_query"
             rows="6"
-            placeholder="SELECT * FROM mainpage_binarymodel LIMIT 50"
+            placeholder="SELECT * FROM mainpage_binarymodel WHERE m1 > 1e8 LIMIT 50"
             spellcheck="false"
-          >{{ raw_query }}</textarea>
+          >{{ sql_query }}</textarea>
           <div class="form-actions">
             <button type="submit">Run Query</button>
             <a href="?mode=sql">Clear</a>
           </div>
         </form>
-        {% if sql_error %}
+        {% if query_mode == "sql" and sql_error %}
+          <p class="sql-error">{{ sql_error }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── ADQL panel ── #}
+    <div id="panel-adql">
+      <div class="sql-panel">
+        <p class="sql-hint">
+          ADQL (Astronomical Data Query Language) &nbsp;·&nbsp; Only <code>SELECT</code> permitted &nbsp;·&nbsp; Results capped at 1 000 rows.
+          <br>Tables: <code>mainpage_binarymodel</code>, <code>mainpage_papers</code>, <code>mainpage_evidence</code>
+          <br><code>SELECT TOP n</code> is translated to <code>LIMIT n</code>.
+          Geometric functions (<code>CIRCLE</code>, <code>CONTAINS</code>, <code>DISTANCE</code>, …) are supported via <strong>pg_sphere</strong>.
+        </p>
+        <form method="get" class="sql-form">
+          <input type="hidden" name="mode" value="adql">
+          <textarea
+            class="sql-input"
+            name="adql_query"
+            rows="6"
+            placeholder="SELECT TOP 50 * FROM mainpage_binarymodel WHERE m1 > 1e8"
+            spellcheck="false"
+          >{{ adql_query }}</textarea>
+          <div class="form-actions">
+            <button type="submit">Run Query</button>
+            <a href="?mode=adql">Clear</a>
+          </div>
+        </form>
+        {% if query_mode == "adql" and sql_error %}
           <p class="sql-error">{{ sql_error }}</p>
         {% endif %}
       </div>
@@ -170,7 +196,7 @@
     </div>
 
     <div class="table-wrap">
-      {% if query_mode == "sql" %}
+      {% if query_mode == "sql" or query_mode == "adql" %}
         {# Dynamic table from raw query results #}
         <table>
           <thead>
@@ -227,23 +253,22 @@
 
 <script>
 (function () {
-  const isSQL = "{{ query_mode }}" === "sql";
-  const tabForm   = document.getElementById('tab-form');
-  const tabSQL    = document.getElementById('tab-sql');
-  const panelForm = document.getElementById('panel-form');
-  const panelSQL  = document.getElementById('panel-sql');
+  const tabs   = { form: 'tab-form', sql: 'tab-sql', adql: 'tab-adql' };
+  const panels = { form: 'panel-form', sql: 'panel-sql', adql: 'panel-adql' };
 
   function activate(mode) {
-    const sql = mode === 'sql';
-    panelSQL.hidden  = !sql;
-    panelForm.hidden = sql;
-    tabSQL.classList.toggle('active', sql);
-    tabForm.classList.toggle('active', !sql);
+    Object.entries(tabs).forEach(([m, id]) => {
+      document.getElementById(id).classList.toggle('active', m === mode);
+    });
+    Object.entries(panels).forEach(([m, id]) => {
+      document.getElementById(id).hidden = m !== mode;
+    });
   }
 
-  activate(isSQL ? 'sql' : 'form');
-  tabForm.addEventListener('click', () => activate('form'));
-  tabSQL.addEventListener('click',  () => activate('sql'));
+  activate("{{ query_mode }}");
+  Object.entries(tabs).forEach(([m, id]) => {
+    document.getElementById(id).addEventListener('click', () => activate(m));
+  });
 })();
 </script>
 {% endblock %}

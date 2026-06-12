@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 
 from .models import BinaryModel, Evidence, Papers
+from . import adql as _adql
 
 _MAX_SQL_ROWS = 1000
 _FORBIDDEN_SQL = re.compile(
@@ -15,28 +16,45 @@ _FORBIDDEN_SQL = re.compile(
     re.IGNORECASE,
 )
 
-def _run_raw_query(query: str):
-    """Execute a read-only raw query. Returns (columns, rows, error_str)."""
+
+_NOT_CONFIGURED_ERROR = (
+    "Queries are unavailable: the read-only database user is not configured.\n"
+    "Run `python manage.py setup_readonly_db_user` then set "
+    "READONLY_DB_USER and READONLY_DB_PASSWORD in your .db_info file and restart."
+)
+
+
+def _execute_validated(sql: str):
+    """Validate and execute a plain SQL string via the readonly connection."""
     if not os.environ.get("READONLY_DB_PASSWORD"):
-        return None, None, (
-            "SQL queries are unavailable: the read-only database user is not configured.\n"
-            "Run `python manage.py setup_readonly_db_user` then set "
-            "READONLY_DB_USER and READONLY_DB_PASSWORD in your .db_info file and restart."
-        )
-    if not re.match(r'\s*SELECT\b', query, re.IGNORECASE):
+        return None, None, _NOT_CONFIGURED_ERROR
+    if not re.match(r'\s*SELECT\b', sql, re.IGNORECASE):
         return None, None, "Only SELECT statements are permitted."
-    if _FORBIDDEN_SQL.search(query):
+    if _FORBIDDEN_SQL.search(sql):
         return None, None, "Query contains a forbidden keyword."
-    if ";" in query:
+    if ";" in sql:
         return None, None, "Multiple statements (semicolons) are not permitted."
     try:
         with connections["readonly"].cursor() as cursor:
-            cursor.execute(query)
+            cursor.execute(sql)
             columns = [d[0] for d in cursor.description]
             rows = cursor.fetchmany(_MAX_SQL_ROWS)
         return columns, rows, None
     except DatabaseError as exc:
         return None, None, str(exc)
+
+
+def _run_sql_query(query: str):
+    """Execute a plain SQL query with no ADQL translation."""
+    return _execute_validated(query)
+
+
+def _run_adql_query(query: str):
+    """Translate ADQL to SQL then execute."""
+    translated, error = _adql.translate(query)
+    if error:
+        return None, None, error
+    return _execute_validated(translated)
 
 #A simple prototype for the frontend. Don't worry about this structure its not representative of the final product.
 #Also if you want to replace this entire thing thats fine.
@@ -181,36 +199,31 @@ def _form_field_context():
 
 #The primary method that returns the information in the mainpage.
 def binary_model_search(request):
-    raw_query = request.GET.get("raw_query", "").strip()
-    sql_mode = raw_query or request.GET.get("mode") == "sql"
+    sql_query  = request.GET.get("sql_query",  "").strip()
+    adql_query = request.GET.get("adql_query", "").strip()
+    mode       = request.GET.get("mode", "form")
 
-    if sql_mode and not raw_query:
-        # SQL tab active but no query yet — show empty SQL panel
+    if sql_query or adql_query or mode in ("sql", "adql"):
+        if sql_query:
+            cols, sql_rows, error = _run_sql_query(sql_query)
+            query_mode, active_q  = "sql",  sql_query
+        elif adql_query:
+            cols, sql_rows, error = _run_adql_query(adql_query)
+            query_mode, active_q  = "adql", adql_query
+        else:
+            cols, sql_rows, error = [], [], None
+            query_mode, active_q  = mode, ""
+
         context = {
             **_form_field_context(),
-            "query_mode": "sql",
-            "raw_query": "",
-            "sql_columns": [],
-            "sql_rows": [],
-            "sql_error": None,
-            "result_count": 0,
-            "has_query": False,
-            "active_columns": [],
-            "rows": [],
-        }
-        return render(request, "mainpage/binary_model_search.html", context)
-
-    if raw_query:
-        sql_columns, sql_rows, sql_error = _run_raw_query(raw_query)
-        context = {
-            **_form_field_context(),
-            "query_mode": "sql",
-            "raw_query": raw_query,
-            "sql_columns": sql_columns or [],
-            "sql_rows": sql_rows or [],
-            "sql_error": sql_error,
+            "query_mode":  query_mode,
+            "sql_query":   sql_query,
+            "adql_query":  adql_query,
+            "sql_columns": cols or [],
+            "sql_rows":    sql_rows or [],
+            "sql_error":   error,
             "result_count": len(sql_rows) if sql_rows else 0,
-            "has_query": True,
+            "has_query":   bool(sql_query or adql_query),
             "active_columns": [],
             "rows": [],
         }
