@@ -59,4 +59,4 @@ I changed one of the models.py and rebuilt it but the changes aren't applying?
 Run the `makemigrations and migrate` commands. Should apply your changes.
 
 Same thing as above but I changed a foreign key, primary key, or added/removed a table. Migrations don't work.  
-💀 You are going to have to go on a long journey through stackoverflow or AI to fix this one.
+You can do FULL HARD RESET and then migrate. If you want to keep your data, strap in and find a good guide that is going to be a long ride.
