@@ -7,7 +7,7 @@ from django.db.utils import DatabaseError
 from django.http import JsonResponse
 from django.shortcuts import render
 
-from .models import BinaryModel, Evidence, Papers
+from .models import BinaryModel, Candidate, Bib, ModelEvidence, EvidenceSubcategory
 from . import adql as _adql
 
 _MAX_SQL_ROWS = 1000

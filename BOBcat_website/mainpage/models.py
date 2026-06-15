@@ -1,83 +1,221 @@
 from django.db import models
 
-# Made by Dominic. KEEEP KEEP KEEP
 
-# TODO make candidate table
+WAVEBAND_CHOICES = [
+    ('radio', 'Radio'),
+    ('infrared', 'Infrared'),
+    ('optical', 'Optical'),
+    ('UV', 'UV'),
+    ('x-ray', 'X-ray'),
+    ('gamma-ray', 'Gamma-ray'),
+]
 
-"""
-class Candidates(models.Model):
-    redshift = models.FloatField(blank=True, null=True)
+ERROR_TYPE_CHOICES = [
+    ('Assumed', 'Assumed'),
+    ('Upper limit', 'Upper limit'),
+    ('Lower limit', 'Lower limit'),
+    ('Gaussian', 'Gaussian'),
+    ('Two-sided', 'Two-sided'),
+    ('Representative', 'Representative'),
+]
 
 
-"""
+class EvidenceCategory(models.Model):
+    evidence_category_id = models.SmallAutoField(primary_key=True)
+    name = models.CharField(max_length=60, unique=True)
 
-#Models each row in the small ingestion list.
-class Papers(models.Model):
-    # paper_id = models.AutoField(primary_key=True)
-    paper_link = models.URLField()
-    candidate_name = models.CharField(max_length=100, blank=True, null=True)
-    ned_name = models.CharField(max_length=100, blank=True, null=True)
-    model_param_link = models.URLField(primary_key=True)  # TODO primary key
-    notes = models.CharField(max_length=500, blank=True, null=True)
+    class Meta:
+        db_table = 'evidence_category'
 
-#Models each model_param sheet
+    def __str__(self):
+        return self.name
+
+
+class EvidenceSubcategory(models.Model):
+    evidence_subcategory_id = models.SmallAutoField(primary_key=True)
+    category = models.ForeignKey(EvidenceCategory, on_delete=models.PROTECT)
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'evidence_subcategory'
+        unique_together = [('category', 'name')]
+
+    def __str__(self):
+        return f'{self.category.name} / {self.name}'
+
+
+# ===================
+# CORE TABLES
+# ===================
+
+class Candidate(models.Model):
+    # NED-recognized name used as the natural primary key
+    name = models.CharField(max_length=100, primary_key=True)
+    # RA/Dec in J2000 decimal degrees — double precision (~1e-10 deg = 1 µas)
+    jra = models.FloatField()
+    jdec = models.FloatField()
+    # Redshift: not a reliable distance indicator below z~0.01
+    redshift = models.FloatField(null=True, blank=True)
+    # Luminosity distance in Mpc; preferred over redshift for nearby objects
+    lum_dist = models.FloatField(null=True, blank=True)
+    # Placeholder source ranking; positive/negative integer scale
+    rating = models.SmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'candidate'
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['jra', 'jdec']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Bib(models.Model):
+    # 19-character ADS/SciX bibcode used as the natural primary key
+    bib_id = models.CharField(max_length=19, primary_key=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    doi = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    title = models.TextField(null=True, blank=True)
+    year = models.SmallIntegerField(null=True, blank=True)
+    # Citation count as of updated_at; max SmallIntegerField is 32,767
+    citations = models.SmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'bib'
+
+    def __str__(self):
+        return self.bib_id
+
+
 class BinaryModel(models.Model):
-    model_param_link = models.OneToOneField(
-        'Papers',
-        on_delete=models.CASCADE,
-        to_field='model_param_link',
-        db_column='model_param_link',
+    binary_model_id = models.BigAutoField(primary_key=True)
+    candidate = models.ForeignKey(
+        Candidate,
+        on_delete=models.PROTECT,
+        to_field='name',
     )
-    sheet_id = models.CharField(max_length=100,
-        help_text="Internal identifier linking this entry to its source spreadsheet")
-    paper = models.CharField(max_length=200, blank=True, null=True,
-        help_text="Citation key or bibcode for the paper this model is drawn from")
-    eccentricity = models.FloatField(blank=True, null=True,
-        help_text="Orbital eccentricity (0 = circular, 0–1 = bound elliptical orbit)")
-    m1 = models.FloatField(blank=True, null=True,
-        help_text="Primary black hole mass in solar masses (M☉)")
-    m2 = models.FloatField(blank=True, null=True,
-        help_text="Secondary black hole mass in solar masses (M☉)")
-    mtot = models.FloatField(blank=True, null=True,
-        help_text="Total system mass m1 + m2 in solar masses (M☉)")
-    mc = models.FloatField(blank=True, null=True,
-        help_text="Chirp mass — the mass combination that governs GW inspiral rate (M☉)")
-    mu = models.FloatField(blank=True, null=True,
-        help_text="Reduced mass μ = m1·m2 / (m1+m2) in solar masses (M☉)")
-    q = models.FloatField(blank=True, null=True,
-        help_text="Mass ratio q = m2/m1, where q ≤ 1 by convention")
-    inclination = models.FloatField(blank=True, null=True,
-        help_text="Orbital inclination relative to the line of sight, in degrees")
-    semimajor_axis = models.FloatField(blank=True, null=True,
-        help_text="Semimajor axis of the binary orbit in parsecs")
-    seperation = models.FloatField(blank=True, null=True,
-        help_text="Physical separation between the two black holes in parsecs")
-    period_epoch = models.FloatField(blank=True, null=True,
-        help_text="Reference epoch (MJD) at which the orbital period is defined")
-    orb_freq = models.FloatField(blank=True, null=True,
-        help_text="Orbital frequency in Hz")
-    orb_period = models.FloatField(blank=True, null=True,
-        help_text="Orbital period in years")
-    summary = models.TextField(blank=True, null=True,
-        help_text="Brief description of the model methodology and assumptions")
-    caveats = models.TextField(max_length=500, blank=True, null=True,
-        help_text="Known limitations, degeneracies, or assumptions to be aware of")
-    ext_proj = models.TextField(max_length=100, blank=True, null=True,
-        help_text="Associated external project or observing campaign")
-    gw_strain = models.FloatField(blank=True, null=True,
-        help_text="Gravitational wave strain amplitude h at Earth")
-    gw_freq = models.FloatField(blank=True, null=True,
-        help_text="Gravitational wave frequency in Hz (typically 2× the orbital frequency)")
-    gw_strain_err = models.FloatField(blank=True, null=True,
-        help_text="1σ uncertainty on the gravitational wave strain")
-    gw_freq_err = models.FloatField(blank=True, null=True,
-        help_text="1σ uncertainty on the gravitational wave frequency in Hz")
+    bib = models.ForeignKey(
+        Bib,
+        on_delete=models.PROTECT,
+        to_field='bib_id',
+    )
+    created_at = models.DateTimeField(null=True, blank=True)
+    # Google Sheets parameter key — exclude from public API responses at the serializer/view level
+    sheet_id = models.TextField(null=True, blank=True)
+
+    # Orbital parameters — nullable; not all are constrained for every model
+    eccentricity = models.FloatField(null=True, blank=True)
+    m1 = models.FloatField(null=True, blank=True, help_text="Larger BH mass in M☉")
+    m2 = models.FloatField(null=True, blank=True, help_text="Smaller BH mass in M☉")
+    mtot = models.FloatField(null=True, blank=True, help_text="Total mass m1+m2 in M☉")
+    mc = models.FloatField(null=True, blank=True, help_text="Chirp mass in M☉")
+    mu = models.FloatField(null=True, blank=True, help_text="Reduced mass in M☉")
+    q = models.FloatField(null=True, blank=True, help_text="Mass ratio m2/m1 ≤ 1")
+    inclination = models.FloatField(null=True, blank=True, help_text="Orbital inclination in degrees")
+    semimajor_axis = models.FloatField(null=True, blank=True, help_text="Semimajor axis in parsecs")
+    separation = models.FloatField(null=True, blank=True, help_text="Projected separation in parsecs")
+    rm_orb_period = models.FloatField(
+        null=True, blank=True,
+        db_column='RM_orb_period',
+        help_text="Earth-frame orbital period in years",
+    )
+    rm_orb_period_epoch = models.FloatField(
+        null=True, blank=True,
+        db_column='RM_orb_period_epoch',
+        help_text="Reference epoch (MJD) for the orbital period",
+    )
+    # Calculated fields
+    gw_strain = models.FloatField(null=True, blank=True, help_text="GW strain amplitude h at Earth (circular orbit)")
+    gw_inspiral_timescale = models.FloatField(null=True, blank=True, help_text="Time to coalescence in seconds (GR, circular orbit)")
+
+    summary = models.CharField(max_length=750, null=True, blank=True)
+    caveats = models.CharField(max_length=750, null=True, blank=True)
+    ext_proj = models.CharField(max_length=750, null=True, blank=True)
+
+    class Meta:
+        db_table = 'binary_model'
+        indexes = [
+            models.Index(fields=['candidate']),
+            models.Index(fields=['bib']),
+            models.Index(fields=['mtot']),
+        ]
+
+    def __str__(self):
+        return f'{self.candidate_id} / {self.bib_id} (id={self.binary_model_id})'
 
 
-# Compacted table describing evidence types.
-class Evidence(models.Model):
-    model_param_link = models.ForeignKey('Papers', on_delete=models.CASCADE, to_field='model_param_link',
-                                         db_column='model_param_link')
-    type = models.CharField(max_length=100, blank=True, null=True)
-    note = models.CharField(max_length=500, blank=True, null=True)
-    waveband = models.CharField(max_length=25, blank=True, null=True)
+# ===================
+# PERIOD MEASUREMENTS
+# ===================
+
+class ObsPeriod(models.Model):
+    obs_period_id = models.BigAutoField(primary_key=True)
+    binary_model = models.ForeignKey(BinaryModel, on_delete=models.PROTECT)
+    waveband = models.CharField(max_length=10, choices=WAVEBAND_CHOICES, null=True, blank=True)
+    value = models.FloatField(help_text="Measured period")
+    epoch = models.FloatField(help_text="Reference epoch in MJD")
+
+    class Meta:
+        db_table = 'obs_period'
+        indexes = [
+            models.Index(fields=['binary_model']),
+            models.Index(fields=['value']),
+        ]
+
+
+class ObsPeriodError(models.Model):
+    obs_period = models.OneToOneField(ObsPeriod, on_delete=models.PROTECT, primary_key=True)
+    error_type = models.CharField(max_length=20, choices=ERROR_TYPE_CHOICES, null=True, blank=True)
+    error_upper = models.FloatField(null=True, blank=True)
+    error_lower = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'obs_period_error'
+
+
+# ===================
+# EVIDENCE TRACKING
+# ===================
+
+class ModelEvidence(models.Model):
+    model_evidence_id = models.BigAutoField(primary_key=True)
+    binary_model = models.ForeignKey(BinaryModel, on_delete=models.PROTECT)
+    subcategory = models.ForeignKey(EvidenceSubcategory, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = 'model_evidence'
+        indexes = [
+            models.Index(fields=['binary_model']),
+            models.Index(fields=['subcategory']),
+        ]
+
+
+class ModelEvidenceWaveband(models.Model):
+    model_evidence_waveband_id = models.BigAutoField(primary_key=True)
+    evidence = models.ForeignKey(ModelEvidence, on_delete=models.PROTECT)
+    waveband = models.CharField(max_length=10, choices=WAVEBAND_CHOICES)
+
+    class Meta:
+        db_table = 'model_evidence_waveband'
+        unique_together = [('evidence', 'waveband')]
+
+
+# ===================
+# ERROR TRACKING
+# ===================
+
+class BinaryModelError(models.Model):
+    binary_model_error_id = models.BigAutoField(primary_key=True)
+    binary_model = models.ForeignKey(BinaryModel, on_delete=models.PROTECT)
+    property_name = models.CharField(max_length=25, help_text="Parameter name, e.g. 'mtot', 'separation'")
+    error_type = models.CharField(max_length=20, choices=ERROR_TYPE_CHOICES, null=True, blank=True)
+    error_upper = models.FloatField(null=True, blank=True)
+    error_lower = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'binary_model_error'
+        unique_together = [('binary_model', 'property_name')]

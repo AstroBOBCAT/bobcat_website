@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 import io
 from django.db import transaction
-from mainpage.models import Papers,BinaryModel,Evidence # Assuming Employee is imported from your models
+from mainpage.models import BinaryModel, Candidate, Bib, ModelEvidence
 
 #TODO Add timestamps!
 
