@@ -20,20 +20,21 @@ ERROR_TYPE_CHOICES = [
 ]
 
 
-class EvidenceCategory(models.Model):
-    evidence_category_id = models.SmallAutoField(primary_key=True)
-    name = models.CharField(max_length=60, unique=True)
-
-    class Meta:
-        db_table = 'evidence_category'
-
-    def __str__(self):
-        return self.name
+class EvidenceCategory(models.TextChoices):
+    SPECTRAL_LINE_VARIABILITY            = 'spectral_line_variability',            'Spectral Line Variability'
+    SPECTRAL_LINE_SNAPSHOT               = 'spectral_line_snapshot',               'Spectral Line Snapshot'
+    CONTINUUM_VARIABILITY                = 'continuum_variability',                'Continuum Variability'
+    SPATIALLY_RESOLVED_OFFSET_OR_DUAL_AGN = 'spatially_resolved_offset_or_dual_AGN', 'Spatially Resolved Offset / Dual AGN'
+    PC_JET_MORPHOLOGY                    = 'pc_jet_morphology',                    'pc-scale Jet Morphology'
+    KPC_JET_MORPHOLOGY                   = 'kpc_jet_morphology',                   'kpc-scale Jet Morphology'
+    HOST_GALAXY                          = 'host_galaxy',                          'Host Galaxy'
+    GRAVITATIONAL_WAVE                   = 'gravitational_wave',                   'Gravitational Wave'
+    SED_FEATURE                          = 'SED_feature',                          'SED Feature'
 
 
 class EvidenceSubcategory(models.Model):
     evidence_subcategory_id = models.SmallAutoField(primary_key=True)
-    category = models.ForeignKey(EvidenceCategory, on_delete=models.PROTECT)
+    category = models.CharField(max_length=50, choices=EvidenceCategory.choices)
     name = models.CharField(max_length=50)
 
     class Meta:
@@ -95,7 +96,7 @@ class BinaryModel(models.Model):
     binary_model_id = models.BigAutoField(primary_key=True)
     candidate = models.ForeignKey(
         Candidate,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         to_field='name',
     )
     bib = models.ForeignKey(
@@ -154,7 +155,7 @@ class BinaryModel(models.Model):
 
 class ObsPeriod(models.Model):
     obs_period_id = models.BigAutoField(primary_key=True)
-    binary_model = models.ForeignKey(BinaryModel, on_delete=models.PROTECT)
+    binary_model = models.ForeignKey(BinaryModel, on_delete=models.CASCADE)
     waveband = models.CharField(max_length=10, choices=WAVEBAND_CHOICES, null=True, blank=True)
     value = models.FloatField(help_text="Measured period")
     epoch = models.FloatField(help_text="Reference epoch in MJD")
@@ -168,7 +169,7 @@ class ObsPeriod(models.Model):
 
 
 class ObsPeriodError(models.Model):
-    obs_period = models.OneToOneField(ObsPeriod, on_delete=models.PROTECT, primary_key=True)
+    obs_period = models.OneToOneField(ObsPeriod, on_delete=models.CASCADE, primary_key=True)
     error_type = models.CharField(max_length=20, choices=ERROR_TYPE_CHOICES, null=True, blank=True)
     error_upper = models.FloatField(null=True, blank=True)
     error_lower = models.FloatField(null=True, blank=True)
@@ -183,7 +184,7 @@ class ObsPeriodError(models.Model):
 
 class ModelEvidence(models.Model):
     model_evidence_id = models.BigAutoField(primary_key=True)
-    binary_model = models.ForeignKey(BinaryModel, on_delete=models.PROTECT)
+    binary_model = models.ForeignKey(BinaryModel, on_delete=models.CASCADE)
     subcategory = models.ForeignKey(EvidenceSubcategory, on_delete=models.PROTECT)
 
     class Meta:
@@ -196,7 +197,7 @@ class ModelEvidence(models.Model):
 
 class ModelEvidenceWaveband(models.Model):
     model_evidence_waveband_id = models.BigAutoField(primary_key=True)
-    evidence = models.ForeignKey(ModelEvidence, on_delete=models.PROTECT)
+    evidence = models.ForeignKey(ModelEvidence, on_delete=models.CASCADE)
     waveband = models.CharField(max_length=10, choices=WAVEBAND_CHOICES)
 
     class Meta:
@@ -210,7 +211,7 @@ class ModelEvidenceWaveband(models.Model):
 
 class BinaryModelError(models.Model):
     binary_model_error_id = models.BigAutoField(primary_key=True)
-    binary_model = models.ForeignKey(BinaryModel, on_delete=models.PROTECT)
+    binary_model = models.ForeignKey(BinaryModel, on_delete=models.CASCADE)
     property_name = models.CharField(max_length=25, help_text="Parameter name, e.g. 'mtot', 'separation'")
     error_type = models.CharField(max_length=20, choices=ERROR_TYPE_CHOICES, null=True, blank=True)
     error_upper = models.FloatField(null=True, blank=True)
