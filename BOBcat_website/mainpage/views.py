@@ -7,7 +7,7 @@ from django.db.utils import DatabaseError
 from django.http import JsonResponse
 from django.shortcuts import render
 
-from .models import BinaryModel, Candidate, Bib, ModelEvidence, EvidenceSubcategory
+from .models import BinaryModel, Candidate, Bib, ModelEvidence, EvidenceSubcategory, EvidenceCategory
 from . import adql as _adql
 
 _MAX_SQL_ROWS = 1000
@@ -56,56 +56,48 @@ def _run_adql_query(query: str):
         return None, None, error
     return _execute_validated(translated)
 
-#A simple prototype for the frontend. Don't worry about this structure its not representative of the final product.
-#Also if you want to replace this entire thing thats fine.
-
-_TILE_IMAGES = [
-    "mainpage/tiles/tile_continuum_variability.png",
-    "mainpage/tiles/tile_gravitational_waves.png",
-    "mainpage/tiles/tile_host_galaxy.png",
-    "mainpage/tiles/tile_kpc_jet_morphology.png",
-    "mainpage/tiles/tile_pc_jet_morphology.png",
-    "mainpage/tiles/tile_resolved_pair_offset.png",
-    "mainpage/tiles/tile_spectral_continuum.png",
-    "mainpage/tiles/tile_spectral_line_snapshot.png",
-    "mainpage/tiles/tile_variable_spectral_line.png",
-]
-
-def _evidence_tile_path(type_str: str) -> str:
-    """Pick a tile image for an evidence type.
-
-    Uses a stable hash of the type string so the same type always maps to
-    the same tile, regardless of naming conventions in the data.
-    """
-    return _TILE_IMAGES[hash(type_str) % len(_TILE_IMAGES)]
+_CATEGORY_TILES = {
+    'spectral_line_variability':            "mainpage/tiles/tile_variable_spectral_line.png",
+    'spectral_line_snapshot':               "mainpage/tiles/tile_spectral_line_snapshot.png",
+    'continuum_variability':                "mainpage/tiles/tile_continuum_variability.png",
+    'spatially_resolved_offset_or_dual_AGN': "mainpage/tiles/tile_resolved_pair_offset.png",
+    'pc_jet_morphology':                    "mainpage/tiles/tile_pc_jet_morphology.png",
+    'kpc_jet_morphology':                   "mainpage/tiles/tile_kpc_jet_morphology.png",
+    'host_galaxy':                          "mainpage/tiles/tile_host_galaxy.png",
+    'gravitational_wave':                   "mainpage/tiles/tile_gravitational_waves.png",
+    'SED_feature':                          "mainpage/tiles/tile_spectral_continuum.png",
+}
+_CATEGORY_LABELS = dict(EvidenceCategory.choices)
+_DEFAULT_TILE = "mainpage/tiles/tile_spectral_continuum.png"
 
 
 ALL_COLUMNS = [
-    {"key": "candidate_name", "label": "Candidate",          "default": True},
-    {"key": "ned_name",       "label": "NED Name",           "default": True},
-    {"key": "paper",          "label": "Paper",              "default": True},
-    {"key": "evidence",       "label": "Evidence",           "default": True},
-    {"key": "sheet_id",       "label": "Sheet ID",           "default": False},#TODO remove
-    {"key": "m1",             "label": "m1",                 "default": True},
-    {"key": "m2",             "label": "m2",                 "default": True},
-    {"key": "mtot",           "label": "Total Mass",         "default": False},
-    {"key": "mc",             "label": "Chirp Mass",         "default": False},
-    {"key": "mu",             "label": "Reduced Mass",       "default": False},
-    {"key": "q",              "label": "Mass Ratio (q)",     "default": True},
-    {"key": "eccentricity",   "label": "Eccentricity",       "default": True},
-    {"key": "inclination",    "label": "Inclination",        "default": False},
-    {"key": "semimajor_axis", "label": "Semimajor Axis",     "default": False},
-    {"key": "seperation",     "label": "Separation",         "default": False},
-    {"key": "period_epoch",   "label": "Period Epoch",       "default": False},
-    {"key": "orb_freq",       "label": "Orbital Frequency",  "default": False},
-    {"key": "orb_period",     "label": "Orbital Period",     "default": False},
-    {"key": "gw_strain",      "label": "GW Strain",          "default": True},
-    {"key": "gw_freq",        "label": "GW Frequency",       "default": True},
-    {"key": "gw_strain_err",  "label": "GW Strain Error",    "default": False},
-    {"key": "gw_freq_err",    "label": "GW Frequency Error", "default": False},
-    {"key": "summary",        "label": "Summary",            "default": False},
-    {"key": "caveats",        "label": "Caveats",            "default": False},
-    {"key": "ext_proj",       "label": "External Project",   "default": False},
+    {"key": "candidate_name",      "label": "Candidate",           "default": True},
+    {"key": "jra",                 "label": "RA (J2000)",          "default": True},
+    {"key": "jdec",                "label": "Dec (J2000)",         "default": True},
+    {"key": "redshift",            "label": "Redshift",            "default": False},
+    {"key": "lum_dist",            "label": "Luminosity Distance", "default": False},
+    {"key": "bib_id",              "label": "Bibcode",             "default": True},
+    {"key": "bib_title",           "label": "Paper Title",         "default": False},
+    {"key": "bib_year",            "label": "Year",                "default": False},
+    {"key": "evidence",            "label": "Evidence",            "default": True},
+    {"key": "m1",                  "label": "m1",                  "default": True},
+    {"key": "m2",                  "label": "m2",                  "default": True},
+    {"key": "mtot",                "label": "Total Mass",          "default": False},
+    {"key": "mc",                  "label": "Chirp Mass",          "default": False},
+    {"key": "mu",                  "label": "Reduced Mass",        "default": False},
+    {"key": "q",                   "label": "Mass Ratio (q)",      "default": True},
+    {"key": "eccentricity",        "label": "Eccentricity",        "default": True},
+    {"key": "inclination",         "label": "Inclination",         "default": False},
+    {"key": "semimajor_axis",      "label": "Semimajor Axis",      "default": False},
+    {"key": "separation",          "label": "Separation",          "default": False},
+    {"key": "rm_orb_period",       "label": "Orbital Period",      "default": False},
+    {"key": "rm_orb_period_epoch", "label": "Period Epoch",        "default": False},
+    {"key": "gw_strain",           "label": "GW Strain",           "default": True},
+    {"key": "gw_inspiral_timescale", "label": "Inspiral Timescale", "default": False},
+    {"key": "summary",             "label": "Summary",             "default": False},
+    {"key": "caveats",             "label": "Caveats",             "default": False},
+    {"key": "ext_proj",            "label": "External Project",    "default": False},
 ]
 
 FLOAT_FIELDS = [
@@ -118,58 +110,58 @@ FLOAT_FIELDS = [
     "q",
     "inclination",
     "semimajor_axis",
-    "seperation",
-    "period_epoch",
-    "orb_freq",
-    "orb_period",
+    "separation",
+    "rm_orb_period",
+    "rm_orb_period_epoch",
     "gw_strain",
-    "gw_freq",
-    "gw_strain_err",
-    "gw_freq_err",
+    "gw_inspiral_timescale",
 ]
 
-#TODO organize fields more.
-#TODO: Mass (m1-q), rotation (inclination-orb_period), GW (gw_strain-gw_freq_err),
 TEXT_FIELDS = [
-    "sheet_id", #TODO remove
-    "paper",
     "summary",
     "caveats",
     "ext_proj",
 ]
 
 FLOAT_FIELD_LABELS = {
-    "eccentricity": "Eccentricity",
-    "m1": "Primary Mass",
-    "m2": "Secondary Mass",
-    "mtot": "Total Mass",
-    "mc": "Chirp Mass",
-    "mu": "Reduced Mass",
-    "q": "Mass Ratio",
-    "inclination": "Inclination",
-    "semimajor_axis": "Semimajor Axis",
-    "seperation": "Separation",
-    "period_epoch": "Period Epoch",
-    "orb_freq": "Orbital Frequency",
-    "orb_period": "Orbital Period",
-    "gw_strain": "GW Strain",
-    "gw_freq": "GW Frequency",
-    "gw_strain_err": "GW Strain Error",
-    "gw_freq_err": "GW Frequency Error",
+    "eccentricity":        "Eccentricity",
+    "m1":                  "Primary Mass",
+    "m2":                  "Secondary Mass",
+    "mtot":                "Total Mass",
+    "mc":                  "Chirp Mass",
+    "mu":                  "Reduced Mass",
+    "q":                   "Mass Ratio",
+    "inclination":         "Inclination",
+    "semimajor_axis":      "Semimajor Axis",
+    "separation":          "Separation",
+    "rm_orb_period":       "Orbital Period",
+    "rm_orb_period_epoch": "Period Epoch",
+    "gw_strain":           "GW Strain",
+    "gw_inspiral_timescale": "Inspiral Timescale",
 }
 
 TEXT_FIELD_LABELS = {
-    "sheet_id": "Sheet ID",
-    "paper": "Paper",
-    "summary": "Summary",
-    "caveats": "Caveats",
+    "summary":  "Summary",
+    "caveats":  "Caveats",
     "ext_proj": "External Project",
+}
+
+_FK_ACCESSORS = {
+    "candidate_name": lambda m: m.candidate.name,
+    "jra":            lambda m: m.candidate.jra,
+    "jdec":           lambda m: m.candidate.jdec,
+    "redshift":       lambda m: m.candidate.redshift,
+    "lum_dist":       lambda m: m.candidate.lum_dist,
+    "bib_id":         lambda m: m.bib.bib_id,
+    "bib_title":      lambda m: m.bib.title,
+    "bib_year":       lambda m: m.bib.year,
 }
 
 
 def sourcepage(request, name):
-    source_search_result_data = Papers.objects.filter(candidate_name=name)
-    return render(request, "mainpage/sourcepage.html", {"source_data": source_search_result_data})
+    candidate = Candidate.objects.filter(name=name)
+    return render(request, "mainpage/sourcepage.html", {"source_data": candidate})
+
 
 def _form_field_context():
     """Static context needed to render the form panel in either query mode."""
@@ -178,7 +170,7 @@ def _form_field_context():
             {
                 "name": field,
                 "label": FLOAT_FIELD_LABELS[field],
-                "help_text": BinaryModel._meta.get_field(field).help_text,
+                "help_text": BinaryModel._meta.get_field(field).help_text or "",
             }
             for field in FLOAT_FIELDS
         ],
@@ -186,7 +178,7 @@ def _form_field_context():
             {
                 "name": field,
                 "label": TEXT_FIELD_LABELS[field],
-                "help_text": BinaryModel._meta.get_field(field).help_text,
+                "help_text": BinaryModel._meta.get_field(field).help_text or "",
             }
             for field in TEXT_FIELDS
         ],
@@ -197,8 +189,19 @@ def _form_field_context():
     }
 
 
-#The primary method that returns the information in the mainpage.
 def binary_model_search(request):
+    if not Candidate.objects.exists():
+        context = {
+            **_form_field_context(),
+            "query_mode": "form",
+            "empty_db": True,
+            "rows": [],
+            "result_count": 0,
+            "has_query": False,
+            "active_columns": [],
+        }
+        return render(request, "mainpage/binary_model_search.html", context)
+
     sql_query  = request.GET.get("sql_query",  "").strip()
     adql_query = request.GET.get("adql_query", "").strip()
     mode       = request.GET.get("mode", "form")
@@ -229,7 +232,7 @@ def binary_model_search(request):
         }
         return render(request, "mainpage/binary_model_search.html", context)
 
-    results = BinaryModel.objects.select_related("model_param_link").all()
+    results = BinaryModel.objects.select_related("candidate", "bib").all()
 
     for field in TEXT_FIELDS:
         value = request.GET.get(field)
@@ -261,23 +264,25 @@ def binary_model_search(request):
 
     candidate_name = request.GET.get("candidate_name")
     if candidate_name:
-        results = results.filter(model_param_link__candidate_name__icontains=candidate_name)
+        results = results.filter(candidate__name__icontains=candidate_name)
 
-    ned_name = request.GET.get("ned_name")
-    if ned_name:
-        results = results.filter(model_param_link__ned_name__icontains=ned_name)
+    bib_id = request.GET.get("bib_id")
+    if bib_id:
+        results = results.filter(bib__bib_id__icontains=bib_id)
 
     has_query = any(v for k, v in request.GET.items() if k not in ("cols", "download"))
 
     if request.GET.get("download") == "json":
         data = [
             {
-                "candidate_name": model.model_param_link.candidate_name,
-                "ned_name": model.model_param_link.ned_name,
-                "paper_link": model.model_param_link.paper_link,
-                "model_param_link": model.model_param_link.model_param_link,
-                "sheet_id": model.sheet_id,
-                "paper": model.paper,
+                "candidate_name": model.candidate.name,
+                "jra": model.candidate.jra,
+                "jdec": model.candidate.jdec,
+                "redshift": model.candidate.redshift,
+                "lum_dist": model.candidate.lum_dist,
+                "bib_id": model.bib.bib_id,
+                "bib_title": model.bib.title,
+                "bib_year": model.bib.year,
                 "eccentricity": model.eccentricity,
                 "m1": model.m1,
                 "m2": model.m2,
@@ -287,17 +292,14 @@ def binary_model_search(request):
                 "q": model.q,
                 "inclination": model.inclination,
                 "semimajor_axis": model.semimajor_axis,
-                "seperation": model.seperation,
-                "period_epoch": model.period_epoch,
-                "orb_freq": model.orb_freq,
-                "orb_period": model.orb_period,
+                "separation": model.separation,
+                "rm_orb_period": model.rm_orb_period,
+                "rm_orb_period_epoch": model.rm_orb_period_epoch,
+                "gw_strain": model.gw_strain,
+                "gw_inspiral_timescale": model.gw_inspiral_timescale,
                 "summary": model.summary,
                 "caveats": model.caveats,
                 "ext_proj": model.ext_proj,
-                "gw_strain": model.gw_strain,
-                "gw_freq": model.gw_freq,
-                "gw_strain_err": model.gw_strain_err,
-                "gw_freq_err": model.gw_freq_err,
             }
             for model in results
         ]
@@ -311,21 +313,22 @@ def binary_model_search(request):
     active_key_set = set(active_keys)
     active_columns = [col for col in ALL_COLUMNS if col["key"] in active_key_set]
 
-    # Materialise queryset once so we can reuse the list for evidence lookup
     result_list = list(results)
 
-    # Build evidence map in a single DB query (avoids N+1)
     evidence_col_active = "evidence" in active_key_set
-    evidence_map: dict[str, list[dict]] = defaultdict(list)
+    evidence_map: dict[int, list[dict]] = defaultdict(list)
     if evidence_col_active:
-        paper_ids = [m.model_param_link_id for m in result_list]
-        for ev in Evidence.objects.filter(
-            model_param_link_id__in=paper_ids
-        ).values("model_param_link_id", "type"):
-            if ev["type"]:
-                evidence_map[ev["model_param_link_id"]].append({
-                    "path": _evidence_tile_path(ev["type"]),
-                    "label": ev["type"],
+        model_ids = [m.binary_model_id for m in result_list]
+        for ev in ModelEvidence.objects.filter(
+            binary_model_id__in=model_ids,
+        ).select_related("subcategory").values(
+            "binary_model_id", "subcategory__category",
+        ):
+            cat = ev["subcategory__category"]
+            if cat:
+                evidence_map[ev["binary_model_id"]].append({
+                    "path": _CATEGORY_TILES.get(cat, _DEFAULT_TILE),
+                    "label": _CATEGORY_LABELS.get(cat, cat),
                 })
 
     rows = []
@@ -336,14 +339,11 @@ def binary_model_search(request):
             if key == "evidence":
                 row.append({
                     "is_evidence": True,
-                    "tiles": evidence_map.get(model.model_param_link_id, []),
+                    "tiles": evidence_map.get(model.binary_model_id, []),
                 })
-            elif key == "candidate_name":
-                val = model.model_param_link.candidate_name
-                row.append({"is_evidence": False, "value": val or "-"})
-            elif key == "ned_name":
-                val = model.model_param_link.ned_name
-                row.append({"is_evidence": False, "value": val or "-"})
+            elif key in _FK_ACCESSORS:
+                val = _FK_ACCESSORS[key](model)
+                row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
             else:
                 val = getattr(model, key, None)
                 row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
@@ -363,5 +363,3 @@ def binary_model_search(request):
         "active_columns": active_columns,
     }
     return render(request, "mainpage/binary_model_search.html", context)
-
-

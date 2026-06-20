@@ -52,8 +52,8 @@
                 <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
               </label>
               <label>
-                NED Name
-                <input type="search" name="ned_name" value="{{ request.GET.ned_name }}" placeholder="Resolved source name">
+                Bibcode
+                <input type="search" name="bib_id" value="{{ request.GET.bib_id }}" placeholder="e.g. 2018ApJ...866...11D">
               </label>
             </div>
           </fieldset>
@@ -118,7 +118,7 @@
       <div class="sql-panel">
         <p class="sql-hint">
           Standard PostgreSQL SQL &nbsp;·&nbsp; Only <code>SELECT</code> permitted &nbsp;·&nbsp; Results capped at 1 000 rows.
-          <br>Tables: <code>mainpage_binarymodel</code>, <code>mainpage_papers</code>, <code>mainpage_evidence</code>
+          <br>Tables: <code>candidate</code>, <code>bib</code>, <code>binary_model</code>, <code>model_evidence</code>, <code>evidence_subcategory</code>
         </p>
         <form method="get" class="sql-form">
           <input type="hidden" name="mode" value="sql">
@@ -126,7 +126,7 @@
             class="sql-input"
             name="sql_query"
             rows="6"
-            placeholder="SELECT * FROM mainpage_binarymodel WHERE m1 > 1e8 LIMIT 50"
+            placeholder="SELECT * FROM binary_model WHERE m1 > 1e8 LIMIT 50"
             spellcheck="false"
           >{{ sql_query }}</textarea>
           <div class="form-actions">
@@ -145,7 +145,7 @@
       <div class="sql-panel">
         <p class="sql-hint">
           ADQL (Astronomical Data Query Language) &nbsp;·&nbsp; Only <code>SELECT</code> permitted &nbsp;·&nbsp; Results capped at 1 000 rows.
-          <br>Tables: <code>mainpage_binarymodel</code>, <code>mainpage_papers</code>, <code>mainpage_evidence</code>
+          <br>Tables: <code>candidate</code>, <code>bib</code>, <code>binary_model</code>, <code>model_evidence</code>, <code>evidence_subcategory</code>
           <br><code>SELECT TOP n</code> is translated to <code>LIMIT n</code>.
           Geometric functions (<code>CIRCLE</code>, <code>CONTAINS</code>, <code>DISTANCE</code>, …) are supported via <strong>pg_sphere</strong>.
         </p>
@@ -155,7 +155,7 @@
             class="sql-input"
             name="adql_query"
             rows="6"
-            placeholder="SELECT TOP 50 * FROM mainpage_binarymodel WHERE m1 > 1e8"
+            placeholder="SELECT TOP 50 * FROM binary_model WHERE m1 > 1e8"
             spellcheck="false"
           >{{ adql_query }}</textarea>
           <div class="form-actions">
@@ -170,6 +170,12 @@
     </div>
 
   </section>
+
+  {% if empty_db %}
+    <div class="sql-error" style="margin: 2rem 0; padding: 1.5rem; text-align: center;">
+      The Candidate table is empty. Run the ingestion command to populate the database before searching.
+    </div>
+  {% endif %}
 
   <section class="results-section" aria-labelledby="results-title">
     <div class="results-heading">

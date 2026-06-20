@@ -76,7 +76,7 @@ class Candidate(models.Model):
 
 class Bib(models.Model):
     # 19-character ADS/SciX bibcode used as the natural primary key
-    bib_id = models.CharField(max_length=19, primary_key=True)
+    bib_id = models.CharField(max_length=29, primary_key=True)
     created_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(null=True, blank=True)
     doi = models.CharField(max_length=100, unique=True, null=True, blank=True)

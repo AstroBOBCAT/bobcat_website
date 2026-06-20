@@ -22,21 +22,5 @@ services:
       - .db_info
     depends_on:
       - db
-
-  ingestion:
-    image: python:3.14
-    working_dir: /app
-    volumes:
-      - /Users/sbs/soft/bobcat/bobcat_db_interface:/app
-      - /Users/sbs/soft/bobcat/gw_utils/:/tmp/gw_utils
-      - ./.db_info:/root/.bobcat/db_info.txt:ro
-    environment:
-      PYTHONPATH: /app:/tmp/gw_utils
-    env_file:
-      - .db_info
-    depends_on:
-      - db
-    command: sh -c "pip install -r requirements.txt && pip install /tmp/gw_utils && python bobcat_db_interface/ingestion/ingest.py"
-
 volumes:
   postgres_data:
