@@ -319,16 +319,24 @@ def binary_model_search(request):
     evidence_map: dict[int, list[dict]] = defaultdict(list)
     if evidence_col_active:
         model_ids = [m.binary_model_id for m in result_list]
+        # Collect subcategory names grouped by (model, category)
+        _ev_by_model_cat: dict[tuple[int, str], list[str]] = defaultdict(list)
         for ev in ModelEvidence.objects.filter(
             binary_model_id__in=model_ids,
         ).select_related("subcategory").values(
-            "binary_model_id", "subcategory__category",
+            "binary_model_id", "subcategory__category", "subcategory__name",
         ):
             cat = ev["subcategory__category"]
             if cat:
-                evidence_map[ev["binary_model_id"]].append({
-                    "path": _CATEGORY_TILES.get(cat, _DEFAULT_TILE),
-                    "label": _CATEGORY_LABELS.get(cat, cat),
+                subcat = ev.get("subcategory__name", "")
+                _ev_by_model_cat[(ev["binary_model_id"], cat)].append(subcat)
+        for (mid, cat), subcats in _ev_by_model_cat.items():
+            cat_label = _CATEGORY_LABELS.get(cat, cat)
+            tile_path = _CATEGORY_TILES.get(cat, _DEFAULT_TILE)
+            for sc in subcats:
+                evidence_map[mid].append({
+                    "path": tile_path,
+                    "label": f"{cat_label}: {sc}" if sc else cat_label,
                 })
 
     rows = []

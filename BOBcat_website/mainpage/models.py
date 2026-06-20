@@ -34,8 +34,8 @@ class EvidenceCategory(models.TextChoices):
 
 class EvidenceSubcategory(models.Model):
     evidence_subcategory_id = models.SmallAutoField(primary_key=True)
-    category = models.CharField(max_length=50, choices=EvidenceCategory.choices)
-    name = models.CharField(max_length=50)
+    category = models.CharField(max_length=100, choices=EvidenceCategory.choices)
+    name = models.CharField(max_length=100)
 
     class Meta:
         db_table = 'evidence_subcategory'

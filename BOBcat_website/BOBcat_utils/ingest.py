@@ -64,17 +64,77 @@ VALID_RANGES = {
 VALID_ERROR_TYPES = {et[0] for et in ERROR_TYPE_CHOICES}
 
 EVIDENCE_CATEGORY_MAP = {
+    # DB value → DB value (identity, for sheet values that already match)
     "spectral_line_variability": EvidenceCategory.SPECTRAL_LINE_VARIABILITY,
     "spectral_line_snapshot": EvidenceCategory.SPECTRAL_LINE_SNAPSHOT,
     "continuum_variability": EvidenceCategory.CONTINUUM_VARIABILITY,
     "spatially_resolved_offset_or_dual_agn": EvidenceCategory.SPATIALLY_RESOLVED_OFFSET_OR_DUAL_AGN,
-    "pc_scale_jet_features": EvidenceCategory.PC_JET_MORPHOLOGY,
     "pc_jet_morphology": EvidenceCategory.PC_JET_MORPHOLOGY,
-    "kpc_scale_jet_features": EvidenceCategory.KPC_JET_MORPHOLOGY,
     "kpc_jet_morphology": EvidenceCategory.KPC_JET_MORPHOLOGY,
     "host_galaxy": EvidenceCategory.HOST_GALAXY,
     "gravitational_wave": EvidenceCategory.GRAVITATIONAL_WAVE,
     "sed_feature": EvidenceCategory.SED_FEATURE,
+    # Aliases used in Google Sheets / evidence-categories file
+    "emission_line_variability": EvidenceCategory.SPECTRAL_LINE_VARIABILITY,
+    "emission_line_snapshot": EvidenceCategory.SPECTRAL_LINE_SNAPSHOT,
+    "continuum_flux_variations": EvidenceCategory.CONTINUUM_VARIABILITY,
+    "spatially_resolved_offset_or_dual_active_nucleus": EvidenceCategory.SPATIALLY_RESOLVED_OFFSET_OR_DUAL_AGN,
+    "pc_scale_jet_features": EvidenceCategory.PC_JET_MORPHOLOGY,
+    "large_scale_jet_features": EvidenceCategory.KPC_JET_MORPHOLOGY,
+    "kpc_scale_jet_features": EvidenceCategory.KPC_JET_MORPHOLOGY,
+    "galaxy_features": EvidenceCategory.HOST_GALAXY,
+    "gravitational_wave_emission": EvidenceCategory.GRAVITATIONAL_WAVE,
+    "broad_band_sed": EvidenceCategory.SED_FEATURE,
+}
+
+# Canonical subcategories per category, seeded if the table is empty.
+# Keys are the file/sheet category names; values map to DB EvidenceCategory
+# via EVIDENCE_CATEGORY_MAP above.
+EVIDENCE_SUBCATEGORIES = {
+    "emission_line_variability": [
+        "broad-line velocity shifts",
+        "narrow-line velocity shifts",
+    ],
+    "emission_line_snapshot": [
+        "multiple narrow-line peaks",
+        "multiple broad-line peaks",
+        "other abnormal blr (e.g. asymmetries)",
+        "other abnormal nlr",
+    ],
+    "continuum_flux_variations": [
+        "continuous light curve variation w/ period",
+        "discrete bursts with periodicity",
+        "correlated multi-band variations",
+    ],
+    "spatially_resolved_offset_or_dual_active_nucleus": [
+        "dual nuclei",
+        "active nucleus offset from photo/kin center",
+    ],
+    "pc_scale_jet_features": [
+        "helical structure",
+        "time-resolved helical outflow",
+        "cso/css source",
+    ],
+    "large_scale_jet_features": [
+        "x/s/z/helical shaped sources",
+        "spatial periodicity",
+    ],
+    "galaxy_features": [
+        "morphological (tidal tails, asymmetry, etc)",
+        "flat-cored galaxy/light deficit",
+        "enhanced tidal disruption rates",
+        "very massive galaxy",
+        "other secondary merger indicators",
+    ],
+    "gravitational_wave_emission": [
+        "pta: gw memory",
+        "pta: continuous waves",
+        "space: gw memory",
+        "space: continuous waves",
+    ],
+    "broad_band_sed": [
+        "n/a",
+    ],
 }
 
 WAVEBAND_MAP = {
@@ -91,6 +151,27 @@ WAVEBAND_MAP = {
 BINARY_MODEL_FIELDS = {f.name for f in BinaryModel._meta.get_fields()}
 
 STRING_FIELDS = {"summary", "caveats", "ext_proj"}
+
+
+# ---------------------------------------------------------------------------
+# Evidence subcategory seeding
+# ---------------------------------------------------------------------------
+
+def seed_evidence_subcategories():
+    """Populate EvidenceSubcategory table if it is empty."""
+    if EvidenceSubcategory.objects.exists():
+        return
+    logger.info("Seeding EvidenceSubcategory table...")
+    rows = []
+    for file_cat, subcats in EVIDENCE_SUBCATEGORIES.items():
+        db_category = EVIDENCE_CATEGORY_MAP[file_cat]
+        for name in subcats:
+            rows.append(EvidenceSubcategory(
+                category=db_category,
+                name=name[:50],
+            ))
+    EvidenceSubcategory.objects.bulk_create(rows, ignore_conflicts=True)
+    logger.info("Seeded %d evidence subcategories", len(rows))
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +453,7 @@ def parse_evidence(indexed_df: pd.DataFrame) -> list[dict]:
             continue
 
         note_val = _get_cell(indexed_df, note_key)
-        subcat_name = str(note_val).strip() if not _is_blank(note_val) else str(cat_val).strip()
+        subcat_name = (str(note_val).strip() if not _is_blank(note_val) else str(cat_val).strip()).lower()
 
         wb_val = _get_cell(indexed_df, wb_key)
         wavebands = []
@@ -446,6 +527,8 @@ def resolve_candidates_parallel(names: list[str]) -> dict[str, dict]:
 def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
     start = time.time()
     now = timezone.now()
+
+    seed_evidence_subcategories()
 
     stats = {
         "candidates": 0,
