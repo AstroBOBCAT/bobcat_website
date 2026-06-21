@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Binary Model Search{% endblock %}
+{% block title %}Welcome to BOBcat{% endblock %}
 
 {% block css_files %}
 <link rel="stylesheet" href="{% static 'mainpage/mainpage.css' %}" />
@@ -11,10 +11,10 @@
 <main class="query-page">
   <header class="query-header">
     <div>
-      <p class="eyebrow">BOBcat Database</p>
-      <h1>Binary Model Query</h1>
+      <p class="eyebrow">Welcome to BOBcat.</p>
+      <h1><img href="">BOBcat Database</h1>
       <p class="header-copy">
-        Search model parameters with optional text filters, exact values, or numeric ranges.
+        The Black holes Orbiting Black holes Catalog
       </p>
     </div>
     <nav class="header-actions" aria-label="Page navigation">
@@ -38,7 +38,8 @@
         <summary class="panel-heading">
           <div>
             <h2 id="query-form-title">Search Parameters</h2>
-            <p>Leave any field blank to omit it from the query.</p>
+	    Search model parameters with optional text filters, exact values, or numeric ranges.
+	    <!--<p>Leave any field blank to omit it from the query.</p>-->
           </div>
           <a class="reset-link" href="{% url 'binary-model-search' %}" onclick="event.stopPropagation()">Reset</a>
         </summary>
@@ -179,7 +180,7 @@
 
   <section class="results-section" aria-labelledby="results-title">
     <div class="results-heading">
-      <div>
+      <!--<div>
         <p class="eyebrow">Results</p>
         <h2 id="results-title">
           {% if has_query %}
@@ -188,7 +189,7 @@
             All binary models
           {% endif %}
         </h2>
-      </div>
+      </div>-->
       {% if query_mode == "form" %}
         <form method="get" class="download-form">
           {% for key, value in request.GET.items %}
