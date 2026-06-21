@@ -276,6 +276,7 @@ def redshift(object_name):
         warning(f"Redshift not available in NED for known object {object_name}. Expanding search to alternate names in SIMBAD.")
         try:
             alt_names = Simbad.query_objectids(object_name) # Get alternative names from SIMBAD
+            print(f"For {object_name} I found alternative names {alt_names}.")
         except Exception as e:
             warning(f"Failed to query SIMBAD for object {object_name}: {e}")
         for name in alt_names:
