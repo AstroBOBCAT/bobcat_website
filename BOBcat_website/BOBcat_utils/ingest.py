@@ -102,7 +102,7 @@ EVIDENCE_SUBCATEGORIES = {
         "other abnormal nlr",
     ],
     "continuum_flux_variations": [
-        "continuous light curve variation w/ period",
+        "continuous light curve variation with periodicity",
         "discrete bursts with periodicity",
         "correlated multi-band variations",
     ],
@@ -139,7 +139,7 @@ EVIDENCE_SUBCATEGORIES = {
 
 WAVEBAND_MAP = {
     "radio": "radio",
-    "infrared": "infrared",
+    "ir": "infrared",
     "optical": "optical",
     "uv": "UV",
     "x-ray": "x-ray",
@@ -212,6 +212,7 @@ def extract_bibcode(link: str) -> tuple[str, str]:
         if domain in link:
             parts = link.rstrip("/").split("/")
             bibcode = parts[-1] if parts[-1] != "abstract" else parts[-2]
+            bibcode = bibcode.replace("%26", "&") # Fixes A%26A URL code for A&A journal (and potentially others)
             scix_link = f"https://scixplorer.org/abs/{bibcode}"
             return scix_link, bibcode
     return link, ""
@@ -562,11 +563,13 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
         logger.warning("Dropped %d duplicate sheet entries", before - len(model_list))
 
     # ── 2. Resolve candidates from NED (parallel) ────────────────────
+    print("DEBUG: RESOLVING CANDIDATES")
     unique_names = list(model_list["NED Name"].unique())
     logger.info("Resolving %d candidates via NED (%d threads)...", len(unique_names), NED_MAX_WORKERS)
     candidate_cache = resolve_candidates_parallel(unique_names)
 
     # ── 3. Create or skip Candidate rows ───────────────────────────────
+    print("DEBUG: CREATE OR SKIP CANDIDATES")
     for name, info in candidate_cache.items():
         _, created = Candidate.objects.get_or_create(
             name=name,
@@ -583,6 +586,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             logger.info("Created candidate: %s", name)
 
     # ── 4. Process each parameter sheet ────────────────────────────────
+    print("DEBUG: PROCESS PARAM SHEETS")
     for _, row in model_list.iterrows():
         ned_name = row["NED Name"]
         paper_link = row["Paper Link"]
@@ -609,8 +613,10 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
 
         indexed = _index_param_sheet(param_df)
 
+        print("DEBUG: GOT A PARAM SHEET")
         # ── Bib ──
         _, bibcode = extract_bibcode(paper_link)
+        print(f"DEBUG: SOURCE {ned_name} FOUND BIBCODE {bibcode} for {paper_link}")
         if not bibcode:
             all_warnings.append(f"No bibcode from link: {paper_link}")
             continue
@@ -708,6 +714,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
                 category=ev["category"],
                 name=ev["subcategory_name"],
             )
+            print(f"for source {ned_name} found subcategory {ev["subcategory_name"]}")
             model_ev, _ = ModelEvidence.objects.get_or_create(
                 binary_model=binary_model,
                 subcategory=subcat,
