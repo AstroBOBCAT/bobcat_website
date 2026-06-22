@@ -11,18 +11,58 @@
 <main class="query-page">
   <header class="query-header">
     <div>
-      <p class="eyebrow">Welcome to BOBcat.</p>
-      <h1><img href="">BOBcat Database</h1>
-      <p class="header-copy">
+      <!--<p class="eyebrow">On the prowl for black holes orbiting black holes</p>-->
+      <h1 class="site-title">
+        <img
+          src="{% static 'mainpage/bobcat_seethru.png' %}"
+          alt=""
+	  width="100"
+        />
+          <!--class="site-logo"
+          width="48"
+          height="48"-->
+        <span class="title-text"><span class="title-bob">BOB</span>cat</span>
+      </h1>
+      <!--<p class="header-copy">
         The Black holes Orbiting Black holes Catalog
-      </p>
+	</p>-->
+      <p class="eyebrow">The <u>B</u>lack holes <u>O</u>rbiting <u>B</u>lack holes <u>Cat</u>alog (Version:  Beta 1.0)</p>
     </div>
     <nav class="header-actions" aria-label="Page navigation">
       <a class="nav-link" href="/">Home</a>
-      <a class="about-button" href="/about-page">About</a>
+      <a class="nav-link" href="/about-page">About</a>
+      <a class="nav-link" href="/about-page">Docs</a>
     </nav>
   </header>
 
+
+  <!--
+      {# -- Associated GW images -- #}
+
+<section class="plot-panel" aria-labelledby="plot-form-title">
+  
+    {# ── Form mode panel ── #}
+    <div id="panel-form">
+      <details class="query-accordion" open>
+        <summary class="panel-heading">
+          <div>
+            <h2 id="plot-panel-title">GW Plots</h2>Compare with NANOGrav 15-year data.
+          </div>
+        </summary>
+	<img
+	  src="{% static 'mainpage/images/skymap.png' %}"
+	  alt="Skymap with BOBcat sources overlaid"
+	  width=45%
+	  />
+	<img
+	  src="{% static 'mainpage/images/loglog_plot.png' %}"
+	  alt="Skymap with BOBcat sources overlaid"
+	  width=45%
+	  />
+      </details>
+    </div>
+    -->
+      
   <section class="query-panel" aria-labelledby="query-form-title">
 
     {# ── Mode toggle tabs ── #}
@@ -127,7 +167,7 @@
             class="sql-input"
             name="sql_query"
             rows="6"
-            placeholder="SELECT * FROM binary_model WHERE m1 > 1e8 LIMIT 50"
+            placeholder="SELECT * FROM binary_model WHERE m1 > 8 LIMIT 50"
             spellcheck="false"
           >{{ sql_query }}</textarea>
           <div class="form-actions">
@@ -156,7 +196,7 @@
             class="sql-input"
             name="adql_query"
             rows="6"
-            placeholder="SELECT TOP 50 * FROM binary_model WHERE m1 > 1e8"
+            placeholder="SELECT TOP 50 * FROM binary_model WHERE m1 > 8"
             spellcheck="false"
           >{{ adql_query }}</textarea>
           <div class="form-actions">
@@ -216,7 +256,7 @@
               <tr>{% for cell in row %}<td>{% if cell is not None %}{{ cell }}{% else %}-{% endif %}</td>{% endfor %}</tr>
             {% empty %}
               {% if not sql_error %}
-                <tr><td colspan="{{ sql_columns|length }}" class="empty-state">No rows returned.</td></tr>
+                <tr><td colspan="{{ sql_columns|length }}" class="empty-state">No candidates in this patch of sky.</td></tr>
               {% endif %}
             {% endfor %}
           </tbody>
@@ -248,7 +288,7 @@
               </tr>
             {% empty %}
               <tr>
-                <td colspan="{{ active_columns|length }}" class="empty-state">No matching models found.</td>
+                <td colspan="{{ active_columns|length }}" class="empty-state">No candidates in this patch of sky.</td>
               </tr>
             {% endfor %}
           </tbody>
