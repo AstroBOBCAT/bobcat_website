@@ -315,8 +315,8 @@ fig.update_yaxes(
 )
 
 fig.update_layout(
+    title="Detectability of Gravitational Waves from Candidates",
     xaxis_range=[np.log10(min(strains['f_grav'])-0.2), max(xedges)-0.01],
-
     legend=dict(
         x=0.06,
         y=1.0,
@@ -325,5 +325,4 @@ fig.update_layout(
 
     font=dict(family="STIXGeneral, Times New Roman, serif")
 )
-
 fig.show()

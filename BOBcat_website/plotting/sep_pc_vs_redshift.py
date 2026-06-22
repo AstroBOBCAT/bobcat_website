@@ -85,6 +85,7 @@ fig.update_yaxes(
     dtick=1
 )
 fig.update_layout(
+    title="Separation (pc) vs Redshift",
     xaxis_title="Redshift",
     yaxis_title="Separation (pc)",
     xaxis_type="log",
