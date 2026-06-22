@@ -124,6 +124,19 @@
 	text-decoration: none;
 }
 
+
+.images-container {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  padding: 1.00rem 5.0rem
+}
+
+.images-container img {
+  width: 40%;  /* set your desired size */
+  height: auto;
+}
+
 .query-panel,
 .results-section {
 	background: var(--nebula);
