@@ -124,6 +124,27 @@
           </fieldset>
 
           <fieldset>
+            <legend>Cone Search</legend>
+            <div class="form-grid compact-grid">
+              <label data-tooltip="Right ascension of search center in decimal degrees (0–360)">
+                RA (deg)
+                <input type="number" step="any" name="cone_ra" value="{{ request.GET.cone_ra }}" placeholder="e.g. 83.633">
+              </label>
+              <label data-tooltip="Declination of search center in decimal degrees (−90 to +90)">
+                Dec (deg)
+                <input type="number" step="any" name="cone_dec" value="{{ request.GET.cone_dec }}" placeholder="e.g. 22.014">
+              </label>
+              <label data-tooltip="Search radius in degrees">
+                Radius (deg)
+                <input type="number" step="any" min="0" name="cone_radius" value="{{ request.GET.cone_radius }}" placeholder="e.g. 1.0">
+              </label>
+            </div>
+            {% if cone_error %}
+              <p class="sql-error">{{ cone_error }}</p>
+            {% endif %}
+          </fieldset>
+
+          <fieldset>
             <legend>Position &amp; Distance</legend>
             <div class="range-grid">
               {% for field in candidate_float_fields %}

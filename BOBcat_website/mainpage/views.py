@@ -6,6 +6,7 @@ from collections import defaultdict
 from urllib.parse import urlencode
 
 from django.db import connections
+from django.db.models.expressions import RawSQL
 from django.db.utils import DatabaseError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -332,6 +333,34 @@ def binary_model_search(request):
             except ValueError:
                 pass
 
+    cone_ra = request.GET.get("cone_ra", "").strip()
+    cone_dec = request.GET.get("cone_dec", "").strip()
+    cone_radius = request.GET.get("cone_radius", "").strip()
+    cone_error = ""
+    if cone_ra and cone_dec and cone_radius:
+        try:
+            ra_val = float(cone_ra)
+            dec_val = float(cone_dec)
+            r_val = float(cone_radius)
+            if not (0 <= ra_val <= 360):
+                cone_error = "RA must be between 0 and 360 degrees."
+            elif not (-90 <= dec_val <= 90):
+                cone_error = "Dec must be between −90 and +90 degrees."
+            elif not (0 < r_val <= 180):
+                cone_error = "Radius must be between 0 and 180 degrees."
+            else:
+                results = results.extra(
+                    where=[
+                        "scircle(spoint(radians(%s), radians(%s)), radians(%s)) @> "
+                        'spoint(radians(candidate.jra), radians(candidate.jdec))'
+                    ],
+                    params=[ra_val, dec_val, r_val],
+                )
+        except ValueError:
+            cone_error = "RA, Dec, and Radius must be numeric values."
+    elif cone_ra or cone_dec or cone_radius:
+        cone_error = "Cone search requires all three fields: RA, Dec, and Radius."
+
     ev_cats = request.GET.getlist("ev_cat")
     if ev_cats:
         results = results.filter(
@@ -493,5 +522,6 @@ def binary_model_search(request):
         "result_count": len(rows),
         "has_query": has_query,
         "active_columns": active_columns,
+        "cone_error": cone_error,
     }
     return render(request, "mainpage/binary_model_search.html", context)

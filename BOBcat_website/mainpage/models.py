@@ -53,12 +53,12 @@ class Candidate(models.Model):
     # NED-recognized name used as the natural primary key
     name = models.CharField(max_length=100, primary_key=True)
     # RA/Dec in J2000 decimal degrees — double precision (~1e-10 deg = 1 µas)
-    jra = models.FloatField()
-    jdec = models.FloatField()
+    jra = models.FloatField(help_text="Right ascension in decimal degrees (J2000)")
+    jdec = models.FloatField(help_text="Declination in decimal degrees (J2000)")
     # Redshift: not a reliable distance indicator below z~0.01
-    redshift = models.FloatField(null=True, blank=True)
+    redshift = models.FloatField(null=True, blank=True, help_text="Spectroscopic redshift")
     # Luminosity distance in Mpc; preferred over redshift for nearby objects
-    lum_dist = models.FloatField(null=True, blank=True)
+    lum_dist = models.FloatField(null=True, blank=True, help_text="Luminosity distance in Mpc")
     # Placeholder source ranking; positive/negative integer scale
     rating = models.SmallIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
@@ -109,7 +109,7 @@ class BinaryModel(models.Model):
     sheet_id = models.TextField(null=True, blank=True)
 
     # Orbital parameters — nullable; not all are constrained for every model
-    eccentricity = models.FloatField(null=True, blank=True)
+    eccentricity = models.FloatField(null=True, blank=True, help_text="Orbital eccentricity (0 = circular)")
     m1 = models.FloatField(null=True, blank=True, help_text="Larger BH mass in M☉")
     m2 = models.FloatField(null=True, blank=True, help_text="Smaller BH mass in M☉")
     mtot = models.FloatField(null=True, blank=True, help_text="Total mass m1+m2 in M☉")
@@ -133,9 +133,9 @@ class BinaryModel(models.Model):
     gw_strain = models.FloatField(null=True, blank=True, help_text="GW strain amplitude h at Earth (circular orbit)")
     gw_inspiral_timescale = models.FloatField(null=True, blank=True, help_text="Time to coalescence in seconds (GR, circular orbit)")
 
-    summary = models.CharField(max_length=750, null=True, blank=True)
-    caveats = models.CharField(max_length=750, null=True, blank=True)
-    ext_proj = models.CharField(max_length=750, null=True, blank=True)
+    summary = models.CharField(max_length=750, null=True, blank=True, help_text="Brief description of the binary model")
+    caveats = models.CharField(max_length=750, null=True, blank=True, help_text="Known limitations or assumptions")
+    ext_proj = models.CharField(max_length=750, null=True, blank=True, help_text="Related external project or survey")
 
     class Meta:
         db_table = 'binary_model'
