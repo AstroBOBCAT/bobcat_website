@@ -38,6 +38,8 @@ Pull data from google sheets via sync_sheets: `docker compose exec backend pytho
 
 Enter psql server (use values in .dbinfo): `docker compose exec db psql -U <user> -d <database`
 
+Current ingestion command: `docker compose exec backend python manage.py Jordans_ingestion`
+
 In case of a major change (like a new table dropped in vast new development) you may need to do a  FULL HARD RESET psql server:
 `docker compose down --volumes`  
 This removes the persistent memory that stands between docker sessions. You will need to then remove the broken migrations:
