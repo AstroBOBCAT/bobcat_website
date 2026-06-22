@@ -99,7 +99,7 @@
 
         <form class="query-form" method="get">
           <fieldset>
-            <legend>Candidate Details</legend>
+            <legend>Candidate &amp; Source</legend>
             <div class="form-grid compact-grid">
               <label>
                 Candidate Name
@@ -110,24 +110,8 @@
                 <input type="search" name="bib_id" value="{{ request.GET.bib_id }}" placeholder="e.g. 2018ApJ...866...11D">
               </label>
             </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Text Fields</legend>
-            <div class="form-grid">
-              {% for field in text_fields %}
-                <label data-tooltip="{{ field.help_text }}">
-                  {{ field.label }}
-                  <input type="search" name="{{ field.name }}" placeholder="Contains...">
-                </label>
-              {% endfor %}
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Numeric Parameters</legend>
             <div class="range-grid">
-              {% for field in float_fields %}
+              {% for field in candidate_float_fields %}
                 <div class="range-group" data-tooltip="{{ field.help_text }}">
                   <span>{{ field.label }}</span>
                   <label>
@@ -143,6 +127,87 @@
                     <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
                   </label>
                 </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Mass Parameters</legend>
+            <div class="range-grid">
+              {% for field in mass_fields %}
+                <div class="range-group" data-tooltip="{{ field.help_text }}">
+                  <span>{{ field.label }}</span>
+                  <label>
+                    Exact
+                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                  </label>
+                  <label>
+                    Min
+                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                  </label>
+                  <label>
+                    Max
+                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Orbital Parameters</legend>
+            <div class="range-grid">
+              {% for field in orbit_fields %}
+                <div class="range-group" data-tooltip="{{ field.help_text }}">
+                  <span>{{ field.label }}</span>
+                  <label>
+                    Exact
+                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                  </label>
+                  <label>
+                    Min
+                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                  </label>
+                  <label>
+                    Max
+                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Gravitational Waves</legend>
+            <div class="range-grid">
+              {% for field in gw_fields %}
+                <div class="range-group" data-tooltip="{{ field.help_text }}">
+                  <span>{{ field.label }}</span>
+                  <label>
+                    Exact
+                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                  </label>
+                  <label>
+                    Min
+                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                  </label>
+                  <label>
+                    Max
+                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Notes &amp; Metadata</legend>
+            <div class="form-grid">
+              {% for field in text_fields %}
+                <label data-tooltip="{{ field.help_text }}">
+                  {{ field.label }}
+                  <input type="search" name="{{ field.name }}" placeholder="Contains...">
+                </label>
               {% endfor %}
             </div>
           </fieldset>
@@ -250,6 +315,7 @@
               <input type="hidden" name="{{ key }}" value="{{ value }}">
             {% endif %}
           {% endfor %}
+          <button type="submit" name="download" value="csv">Download CSV</button>
           <button type="submit" name="download" value="json">Download JSON</button>
         </form>
       {% endif %}
@@ -279,7 +345,17 @@
         <table>
           <thead>
             <tr>
-              {% for col in active_columns %}<th>{{ col.label }}</th>{% endfor %}
+              {% for col in active_columns %}
+                <th>
+                  {% if col.sortable %}
+                    <a href="{{ col.sort_url }}" class="sort-header{% if col.sort_indicator %} sorted{% endif %}">
+                      {{ col.label }}&nbsp;{{ col.sort_indicator }}
+                    </a>
+                  {% else %}
+                    {{ col.label }}
+                  {% endif %}
+                </th>
+              {% endfor %}
             </tr>
           </thead>
           <tbody>
@@ -294,6 +370,8 @@
                         </span>
                       {% empty %}-{% endfor %}
                     </td>
+                  {% elif cell.link %}
+                    <td><a href="{{ cell.link }}" target="_blank" rel="noopener">{{ cell.value }}</a></td>
                   {% else %}
                     <td>{{ cell.value }}</td>
                   {% endif %}

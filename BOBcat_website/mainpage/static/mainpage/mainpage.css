@@ -496,6 +496,23 @@ th {
 	white-space: nowrap;
 }
 
+.sort-header {
+	color: inherit;
+	text-decoration: none;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+}
+
+.sort-header:hover {
+	color: var(--accretion);
+}
+
+.sort-header.sorted {
+	color: var(--accretion);
+}
+
 tbody tr:nth-of-type(even) {
 	background: var(--nebula-raised);
 }

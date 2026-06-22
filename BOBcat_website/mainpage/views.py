@@ -1,10 +1,13 @@
+import csv
+import io
 import os
 import re
 from collections import defaultdict
+from urllib.parse import urlencode
 
 from django.db import connections
 from django.db.utils import DatabaseError
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 
 from .models import BinaryModel, Candidate, Bib, ModelEvidence, EvidenceSubcategory, EvidenceCategory
@@ -100,22 +103,12 @@ ALL_COLUMNS = [
     {"key": "ext_proj",            "label": "External Project",    "default": False},
 ]
 
-FLOAT_FIELDS = [
-    "eccentricity",
-    "m1",
-    "m2",
-    "mtot",
-    "mc",
-    "mu",
-    "q",
-    "inclination",
-    "semimajor_axis",
-    "separation",
-    "rm_orb_period",
-    "rm_orb_period_epoch",
-    "gw_strain",
-    "gw_inspiral_timescale",
-]
+CANDIDATE_FLOAT_FIELDS = ["jra", "jdec", "redshift"]
+MASS_FIELDS   = ["m1", "m2", "mtot", "mc", "mu", "q"]
+ORBIT_FIELDS  = ["eccentricity", "inclination", "semimajor_axis", "separation", "rm_orb_period", "rm_orb_period_epoch"]
+GW_FIELDS     = ["gw_strain", "gw_inspiral_timescale"]
+
+FLOAT_FIELDS = MASS_FIELDS + ORBIT_FIELDS + GW_FIELDS
 
 TEXT_FIELDS = [
     "summary",
@@ -124,19 +117,22 @@ TEXT_FIELDS = [
 ]
 
 FLOAT_FIELD_LABELS = {
-    "eccentricity":        "Eccentricity",
-    "m1":                  "Primary Mass",
-    "m2":                  "Secondary Mass",
-    "mtot":                "Total Mass",
-    "mc":                  "Chirp Mass",
-    "mu":                  "Reduced Mass",
-    "q":                   "Mass Ratio",
-    "inclination":         "Inclination",
-    "semimajor_axis":      "Semimajor Axis",
-    "separation":          "Separation",
-    "rm_orb_period":       "Orbital Period",
-    "rm_orb_period_epoch": "Period Epoch",
-    "gw_strain":           "GW Strain",
+    "jra":                   "RA (J2000)",
+    "jdec":                  "Dec (J2000)",
+    "redshift":              "Redshift",
+    "eccentricity":          "Eccentricity",
+    "m1":                    "Primary Mass",
+    "m2":                    "Secondary Mass",
+    "mtot":                  "Total Mass",
+    "mc":                    "Chirp Mass",
+    "mu":                    "Reduced Mass",
+    "q":                     "Mass Ratio",
+    "inclination":           "Inclination",
+    "semimajor_axis":        "Semimajor Axis",
+    "separation":            "Separation",
+    "rm_orb_period":         "Orbital Period",
+    "rm_orb_period_epoch":   "Period Epoch",
+    "gw_strain":             "GW Strain",
     "gw_inspiral_timescale": "Inspiral Timescale",
 }
 
@@ -156,6 +152,18 @@ _FK_ACCESSORS = {
     "bib_title":      lambda m: m.bib.title,
     "bib_year":       lambda m: m.bib.year,
 }
+
+_SORT_ORM_FIELDS = {
+    "candidate_name": "candidate__name",
+    "jra":            "candidate__jra",
+    "jdec":           "candidate__jdec",
+    "redshift":       "candidate__redshift",
+    "lum_dist":       "candidate__lum_dist",
+    "bib_id":         "bib__bib_id",
+    "bib_title":      "bib__title",
+    "bib_year":       "bib__year",
+}
+_SORTABLE_KEYS = {col["key"] for col in ALL_COLUMNS if col["key"] != "evidence"}
 
 # Table display controls
 _DISPLAY_FORMATS = {
@@ -192,22 +200,24 @@ def _format_for_display(key, val):
 
 def _form_field_context():
     """Static context needed to render the form panel in either query mode."""
+
+    def _bm_fields(names):
+        return [
+            {"name": f, "label": FLOAT_FIELD_LABELS[f], "help_text": BinaryModel._meta.get_field(f).help_text or ""}
+            for f in names
+        ]
+
     return {
-        "float_fields": [
-            {
-                "name": field,
-                "label": FLOAT_FIELD_LABELS[field],
-                "help_text": BinaryModel._meta.get_field(field).help_text or "",
-            }
-            for field in FLOAT_FIELDS
+        "candidate_float_fields": [
+            {"name": f, "label": FLOAT_FIELD_LABELS[f], "help_text": Candidate._meta.get_field(f).help_text or ""}
+            for f in CANDIDATE_FLOAT_FIELDS
         ],
+        "mass_fields":  _bm_fields(MASS_FIELDS),
+        "orbit_fields": _bm_fields(ORBIT_FIELDS),
+        "gw_fields":    _bm_fields(GW_FIELDS),
         "text_fields": [
-            {
-                "name": field,
-                "label": TEXT_FIELD_LABELS[field],
-                "help_text": BinaryModel._meta.get_field(field).help_text or "",
-            }
-            for field in TEXT_FIELDS
+            {"name": f, "label": TEXT_FIELD_LABELS[f], "help_text": BinaryModel._meta.get_field(f).help_text or ""}
+            for f in TEXT_FIELDS
         ],
         "all_columns": [
             {**col, "checked": col["default"]}
@@ -297,9 +307,39 @@ def binary_model_search(request):
     if bib_id:
         results = results.filter(bib__bib_id__icontains=bib_id)
 
-    has_query = any(v for k, v in request.GET.items() if k not in ("cols", "download"))
+    for field in CANDIDATE_FLOAT_FIELDS:
+        orm_prefix = f"candidate__{field}"
+        exact_value = request.GET.get(field)
+        min_value = request.GET.get(f"{field}_min")
+        max_value = request.GET.get(f"{field}_max")
+        if exact_value:
+            try:
+                results = results.filter(**{orm_prefix: float(exact_value)})
+            except ValueError:
+                pass
+        if min_value:
+            try:
+                results = results.filter(**{f"{orm_prefix}__gte": float(min_value)})
+            except ValueError:
+                pass
+        if max_value:
+            try:
+                results = results.filter(**{f"{orm_prefix}__lte": float(max_value)})
+            except ValueError:
+                pass
 
-    if request.GET.get("download") == "json":
+    sort_key = request.GET.get("sort", "")
+    sort_dir = request.GET.get("sort_dir", "asc")
+    if sort_key in _SORTABLE_KEYS:
+        orm_field = _SORT_ORM_FIELDS.get(sort_key, sort_key)
+        if sort_dir == "desc":
+            orm_field = f"-{orm_field}"
+        results = results.order_by(orm_field)
+
+    has_query = any(v for k, v in request.GET.items() if k not in ("cols", "download", "sort", "sort_dir"))
+
+    download_fmt = request.GET.get("download")
+    if download_fmt in ("json", "csv"):
         data = [
             {
                 "candidate_name": model.candidate.name,
@@ -330,6 +370,17 @@ def binary_model_search(request):
             }
             for model in results
         ]
+
+        if download_fmt == "csv":
+            buf = io.StringIO()
+            if data:
+                writer = csv.DictWriter(buf, fieldnames=data[0].keys())
+                writer.writeheader()
+                writer.writerows(data)
+            response = HttpResponse(buf.getvalue(), content_type="text/csv")
+            response["Content-Disposition"] = 'attachment; filename="binary_model_query.csv"'
+            return response
+
         response = JsonResponse(data, safe=False, json_dumps_params={"indent": 2})
         response["Content-Disposition"] = 'attachment; filename="binary_model_query.json"'
         return response
@@ -338,7 +389,27 @@ def binary_model_search(request):
     selected_keys = request.GET.getlist("cols")
     active_keys = selected_keys if selected_keys else default_keys
     active_key_set = set(active_keys)
-    active_columns = [col for col in ALL_COLUMNS if col["key"] in active_key_set]
+    active_columns = [{**col} for col in ALL_COLUMNS if col["key"] in active_key_set]
+
+    base_params = [
+        (k, v)
+        for k, vs in request.GET.lists()
+        for v in vs
+        if k not in ("sort", "sort_dir")
+    ]
+    for col in active_columns:
+        key = col["key"]
+        if key not in _SORTABLE_KEYS:
+            col["sortable"] = False
+            continue
+        col["sortable"] = True
+        if key == sort_key:
+            new_dir = "desc" if sort_dir == "asc" else "asc"
+            col["sort_indicator"] = "▲" if sort_dir == "asc" else "▼"
+        else:
+            new_dir = "asc"
+            col["sort_indicator"] = ""
+        col["sort_url"] = "?" + urlencode(base_params + [("sort", key), ("sort_dir", new_dir)])
 
     result_list = list(results)
 
@@ -376,16 +447,22 @@ def binary_model_search(request):
                     "is_evidence": True,
                     "tiles": evidence_map.get(model.binary_model_id, []),
                 })
+            elif key == "bib_id":
+                bib = model.bib
+                val = bib.bib_id or "-"
+                if bib.doi:
+                    url = f"https://doi.org/{bib.doi}"
+                elif bib.bib_id:
+                    url = f"https://ui.adsabs.harvard.edu/abs/{bib.bib_id}"
+                else:
+                    url = ""
+                row.append({"is_evidence": False, "value": val, "link": url})
             elif key in _FK_ACCESSORS:
                 val = _FK_ACCESSORS[key](model)
                 row.append({"is_evidence": False, "value": _format_for_display(key, val)})
             else:
                 val = getattr(model, key, None)
                 row.append({"is_evidence": False, "value": _format_for_display(key, val)})
-            #    row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
-            #else:
-            #    val = getattr(model, key, None)
-            #    row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
         rows.append(row)
 
     form_ctx = _form_field_context()
