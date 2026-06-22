@@ -77,15 +77,15 @@ ALL_COLUMNS = [
     {"key": "jdec",                "label": "Dec (J2000)",         "default": True},
     {"key": "redshift",            "label": "Redshift",            "default": False},
     {"key": "lum_dist",            "label": "Luminosity Distance", "default": False},
-    {"key": "bib_id",              "label": "Bibcode",             "default": True},
+    {"key": "bib_id",              "label": "Model Bibcode",             "default": True},
     {"key": "bib_title",           "label": "Paper Title",         "default": False},
     {"key": "bib_year",            "label": "Year",                "default": False},
     {"key": "evidence",            "label": "Evidence",            "default": True},
-    {"key": "m1",                  "label": "m1",                  "default": True},
-    {"key": "m2",                  "label": "m2",                  "default": True},
-    {"key": "mtot",                "label": "Total Mass",          "default": False},
-    {"key": "mc",                  "label": "Chirp Mass",          "default": False},
-    {"key": "mu",                  "label": "Reduced Mass",        "default": False},
+    {"key": "m1",                  "label": "log(m1)",                  "default": True},
+    {"key": "m2",                  "label": "log(m2)",                  "default": True},
+    {"key": "mtot",                "label": "log(Total Mass)",          "default": False},
+    {"key": "mc",                  "label": "log(Chirp Mass)",          "default": False},
+    {"key": "mu",                  "label": "log(Reduced Mass)",        "default": False},
     {"key": "q",                   "label": "Mass Ratio (q)",      "default": True},
     {"key": "eccentricity",        "label": "Eccentricity",        "default": True},
     {"key": "inclination",         "label": "Inclination",         "default": False},
@@ -157,11 +157,38 @@ _FK_ACCESSORS = {
     "bib_year":       lambda m: m.bib.year,
 }
 
+# Table display controls
+_DISPLAY_FORMATS = {
+    "jra":        "{:.5f}",   # RA (J2000), degrees
+    "jdec":       "{:.5f}",   # Dec (J2000), degrees
+    "redshift":   "{:.4f}",
+    "lum_dist":   "{:.1f}",
+    "mtot":       "{:.2f}",   # total mass — scientific notation
+    "m1":         "{:.2f}",
+    "m2":         "{:.2f}",
+    "mc":         "{:.2f}",
+    "mu":         "{:.2f}",
+    "q":          "{:.4f}",
+    "eccentricity": "{:.2f}",
+    "gw_strain":  "{:.4f}",
+    # add more keys as needed
+}
 
 def sourcepage(request, name):
     candidate = Candidate.objects.filter(name=name)
     return render(request, "mainpage/sourcepage.html", {"source_data": candidate})
 
+def _format_for_display(key, val):
+    """Format a cell value for HTML display. Returns '-' for empty/null."""
+    if val is None or val == "":
+        return "-"
+    fmt = _DISPLAY_FORMATS.get(key)
+    if fmt is None:
+        return val
+    try:
+        return fmt.format(float(val))
+    except (TypeError, ValueError):
+        return val
 
 def _form_field_context():
     """Static context needed to render the form panel in either query mode."""
@@ -351,10 +378,14 @@ def binary_model_search(request):
                 })
             elif key in _FK_ACCESSORS:
                 val = _FK_ACCESSORS[key](model)
-                row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
+                row.append({"is_evidence": False, "value": _format_for_display(key, val)})
             else:
                 val = getattr(model, key, None)
-                row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
+                row.append({"is_evidence": False, "value": _format_for_display(key, val)})
+            #    row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
+            #else:
+            #    val = getattr(model, key, None)
+            #    row.append({"is_evidence": False, "value": val if val is not None and val != "" else "-"})
         rows.append(row)
 
     form_ctx = _form_field_context()
