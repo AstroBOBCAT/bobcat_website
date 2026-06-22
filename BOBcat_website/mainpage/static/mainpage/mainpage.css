@@ -191,7 +191,15 @@
 /* ── Mode tabs ── */
 .mode-tabs {
 	display: flex;
+	align-items: center;
 	border-bottom: 1px solid var(--orbit);
+}
+
+.mode-tabs .reset-link {
+	margin-left: auto;
+	margin-bottom: 0;
+	font-size: 0.82rem;
+	padding: 0.3rem 0.75rem;
 }
 
 .mode-tab {
@@ -395,6 +403,76 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.5rem 1.25rem;
+}
+
+.check-dropdown {
+	position: relative;
+}
+
+.check-dropdown-toggle {
+	display: block;
+	padding: 0.45rem 0.75rem;
+	background: var(--nebula);
+	border: 1px solid var(--orbit);
+	border-radius: 6px;
+	color: var(--stardust);
+	font: inherit;
+	font-size: 0.88rem;
+	cursor: pointer;
+	list-style: none;
+}
+
+.check-dropdown-toggle::-webkit-details-marker {
+	display: none;
+}
+
+.check-dropdown-toggle::after {
+	content: "▾";
+	float: right;
+	margin-left: 0.5em;
+}
+
+.check-dropdown[open] > .check-dropdown-toggle::after {
+	content: "▴";
+}
+
+.check-dropdown-panel {
+	position: absolute;
+	z-index: 10;
+	left: 0;
+	right: 0;
+	max-height: 14rem;
+	overflow-y: auto;
+	margin-top: 2px;
+	padding: 0.35rem 0;
+	background: var(--nebula);
+	border: 1px solid var(--orbit);
+	border-radius: 6px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.check-dropdown-item.check-dropdown-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.5em;
+	padding: 0.3rem 0.75rem;
+	color: var(--stardust);
+	font-size: 0.86rem;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.check-dropdown-item input[type="checkbox"] {
+	width: 0.86em;
+	height: 0.86em;
+	flex-shrink: 0;
+	order: -1;
+	margin: 0;
+}
+
+.check-dropdown-item:hover {
+	background: rgba(184, 122, 40, 0.12);
 }
 
 .col-check {

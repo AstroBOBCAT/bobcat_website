@@ -84,32 +84,47 @@
       <button class="mode-tab" id="tab-form" role="tab" type="button">Form Search</button>
       <button class="mode-tab" id="tab-sql"  role="tab" type="button">SQL</button>
       <button class="mode-tab" id="tab-adql" role="tab" type="button">ADQL</button>
+      <a class="reset-link" href="{% url 'binary-model-search' %}">Reset</a>
     </div>
 
     {# ── Form mode panel ── #}
     <div id="panel-form">
-      <details class="query-accordion" {% if has_query and query_mode == "form" %}open{% endif %}>
-        <summary class="panel-heading">
-          <div>
-            <h2 id="query-form-title">Search Filters/Show Columns</h2>
-	    <!--<p>Leave any field blank to omit it from the query.</p>-->
-          </div>
-          <a class="reset-link" href="{% url 'binary-model-search' %}" onclick="event.stopPropagation()">Reset</a>
-        </summary>
+      <form class="query-form" method="get">
+        <div class="form-grid compact-grid">
+          <label>
+            Candidate Name
+            <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
+          </label>
+          <label>
+            Bibcode
+            <input type="search" name="bib_id" value="{{ request.GET.bib_id }}" placeholder="e.g. 2018ApJ...866...11D">
+          </label>
+        </div>
 
-        <form class="query-form" method="get">
+        <div class="form-actions">
+          <button type="submit">Run Query</button>
+        </div>
+
+        <details class="query-accordion" {% if has_query and query_mode == "form" %}open{% endif %}>
+          <summary class="panel-heading">Advanced Filters &amp; Columns</summary>
+
           <fieldset>
-            <legend>Candidate &amp; Source</legend>
-            <div class="form-grid compact-grid">
-              <label>
-                Candidate Name
-                <input type="search" name="candidate_name" value="{{ request.GET.candidate_name }}" placeholder="e.g. OJ 287">
-              </label>
-              <label>
-                Bibcode
-                <input type="search" name="bib_id" value="{{ request.GET.bib_id }}" placeholder="e.g. 2018ApJ...866...11D">
-              </label>
-            </div>
+            <legend>Columns</legend>
+            <details class="check-dropdown">
+              <summary class="check-dropdown-toggle">Select columns</summary>
+              <div class="check-dropdown-panel">
+                {% for col in all_columns %}
+                  <label class="check-dropdown-item">
+                    <input type="checkbox" name="cols" value="{{ col.key }}"{% if col.checked %} checked{% endif %}>
+                    {{ col.label }}
+                  </label>
+                {% endfor %}
+              </div>
+            </details>
+          </fieldset>
+
+          <fieldset>
+            <legend>Position &amp; Distance</legend>
             <div class="range-grid">
               {% for field in candidate_float_fields %}
                 <div class="range-group" data-tooltip="{{ field.help_text }}">
@@ -201,6 +216,27 @@
           </fieldset>
 
           <fieldset>
+            <legend>Evidence</legend>
+            <div class="form-grid compact-grid">
+              <details class="check-dropdown">
+                <summary class="check-dropdown-toggle">Categories</summary>
+                <div class="check-dropdown-panel">
+                  {% for cat in evidence_categories %}
+                    <label class="check-dropdown-item">
+                      <input type="checkbox" name="ev_cat" value="{{ cat.value }}">
+                      {{ cat.label }}
+                    </label>
+                  {% endfor %}
+                </div>
+              </details>
+              <label>
+                Subcategory keyword
+                <input type="search" name="ev_subcat" value="{{ request.GET.ev_subcat }}" placeholder="e.g. double-peaked">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
             <legend>Notes &amp; Metadata</legend>
             <div class="form-grid">
               {% for field in text_fields %}
@@ -212,24 +248,8 @@
             </div>
           </fieldset>
 
-          <fieldset>
-            <legend>Columns</legend>
-            <div class="col-picker">
-              {% for col in all_columns %}
-                <label class="col-check">
-                  <input type="checkbox" name="cols" value="{{ col.key }}"{% if col.checked %} checked{% endif %}>
-                  {{ col.label }}
-                </label>
-              {% endfor %}
-            </div>
-          </fieldset>
-
-          <div class="form-actions">
-            <button type="submit">Run Query</button>
-            <a href="{% url 'binary-model-search' %}">Clear filters</a>
-          </div>
-        </form>
-      </details>
+        </details>
+      </form>
     </div>
 
     {# ── SQL panel ── #}

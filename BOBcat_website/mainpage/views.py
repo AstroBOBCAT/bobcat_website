@@ -215,6 +215,10 @@ def _form_field_context():
         "mass_fields":  _bm_fields(MASS_FIELDS),
         "orbit_fields": _bm_fields(ORBIT_FIELDS),
         "gw_fields":    _bm_fields(GW_FIELDS),
+        "evidence_categories": [
+            {"value": val, "label": label}
+            for val, label in EvidenceCategory.choices
+        ],
         "text_fields": [
             {"name": f, "label": TEXT_FIELD_LABELS[f], "help_text": BinaryModel._meta.get_field(f).help_text or ""}
             for f in TEXT_FIELDS
@@ -327,6 +331,18 @@ def binary_model_search(request):
                 results = results.filter(**{f"{orm_prefix}__lte": float(max_value)})
             except ValueError:
                 pass
+
+    ev_cats = request.GET.getlist("ev_cat")
+    if ev_cats:
+        results = results.filter(
+            modelevidence__subcategory__category__in=ev_cats,
+        ).distinct()
+
+    ev_subcat = request.GET.get("ev_subcat", "").strip()
+    if ev_subcat:
+        results = results.filter(
+            modelevidence__subcategory__name__icontains=ev_subcat,
+        ).distinct()
 
     sort_key = request.GET.get("sort", "")
     sort_dir = request.GET.get("sort_dir", "asc")
