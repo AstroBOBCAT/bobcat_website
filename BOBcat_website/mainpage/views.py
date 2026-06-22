@@ -75,7 +75,7 @@ ALL_COLUMNS = [
     {"key": "candidate_name",      "label": "Candidate",           "default": True},
     {"key": "jra",                 "label": "RA (J2000)",          "default": True},
     {"key": "jdec",                "label": "Dec (J2000)",         "default": True},
-    {"key": "redshift",            "label": "Redshift",            "default": False},
+    {"key": "redshift",            "label": "Redshift",            "default": True},
     {"key": "lum_dist",            "label": "Luminosity Distance", "default": False},
     {"key": "bib_id",              "label": "Model Bibcode",             "default": True},
     {"key": "bib_title",           "label": "Paper Title",         "default": False},
