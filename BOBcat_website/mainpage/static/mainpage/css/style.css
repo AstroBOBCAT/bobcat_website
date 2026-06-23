@@ -1,6 +1,7 @@
-/* Apply a clean, modern sans-serif font to the whole page */
+/* Apply fonts to the whole page */
 body {
-    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: Arial; /*'Trebuchet MS', 'Lucida Grande', 'Lucida Sans', sans-serif;*/
+    /*font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;*/
     background-color: #f8f9fa; /* Very soft light gray background */
     color: #333333;
     margin: 0;

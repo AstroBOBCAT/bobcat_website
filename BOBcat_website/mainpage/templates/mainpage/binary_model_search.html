@@ -16,11 +16,8 @@
         <img
           src="{% static 'mainpage/bobcat_seethru.png' %}"
           alt=""
-	  width="100"
+          class="site-logo"
         />
-          <!--class="site-logo"
-          width="48"
-          height="48"-->
         <span class="title-text"><span class="title-bob">BOB</span>cat</span>
       </h1>
       <!--<p class="header-copy">
@@ -63,18 +60,20 @@
     </div>
     -->
 
-    <section class="images-container">
-
-      <img
-	  src="{% static 'mainpage/images/skymap.png' %}"
-	  alt="Skymap with BOBcat sources overlaid"
-	  />
-
-      <img
-	  src="{% static 'mainpage/images/loglog_plot_try.png' %}"
-	  alt="Skymap with BOBcat sources overlaid"
-	  />
-
+    <section class="figures-panel" aria-labelledby="figures-heading">
+      <h2 class="figures-heading" id="figures-heading">
+        Gravitational waves at a glance for your selected candidates
+      </h2>
+      <div class="images-container">
+        <img
+          src="{% static 'mainpage/images/skymap.png' %}"
+          alt="Skymap with BOBcat sources overlaid"
+        />
+        <img
+          src="{% static 'mainpage/images/loglog_plot_try.png' %}"
+          alt="Log-log plot of PTA sensitivities"
+        />
+      </div>
     </section>
 
   <section class="query-panel" aria-labelledby="query-form-title">
