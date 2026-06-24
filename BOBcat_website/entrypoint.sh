@@ -33,6 +33,6 @@ python manage.py collectstatic --no-input
 
 echo "Starting gunicorn..."
 exec gunicorn BOBcat_website.wsgi:application \
-    --bind 0.0.0.0:8000 \
+    --bind 0.0.0.0:${PORT:-8000} \
     --workers 3 \
     --timeout 120

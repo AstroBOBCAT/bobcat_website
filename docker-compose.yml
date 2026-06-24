@@ -24,5 +24,16 @@ services:
       db:
         condition: service_healthy
 
+  ingest:
+    build: ./BOBcat_website/
+    env_file:
+      - .db_info
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python manage.py Jordans_ingestion
+    profiles:
+      - ingest
+
 volumes:
   postgres_data:
