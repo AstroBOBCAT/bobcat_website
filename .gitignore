@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+BOBcat_website/staticfiles/
+.env
+.db_info
+.claude/
+*.sqlite3

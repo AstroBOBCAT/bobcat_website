@@ -6,13 +6,6 @@ from django.db import connection
 
 _SAFE_IDENTIFIER = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
 
-TABLES = [
-    "mainpage_binarymodel",
-    "mainpage_papers",
-    "mainpage_evidence",
-]
-
-
 class Command(BaseCommand):
     help = (
         "Create (or update) the read-only PostgreSQL role used to execute "
@@ -52,12 +45,34 @@ class Command(BaseCommand):
             cur.execute(f'GRANT CONNECT ON DATABASE "{db_name}" TO "{user}"')
             cur.execute(f'GRANT USAGE ON SCHEMA public TO "{user}"')
 
-            for table in TABLES:
+            cur.execute(f'REVOKE ALL ON ALL TABLES IN SCHEMA public FROM "{user}"')
+            cur.execute(
+                f'ALTER DEFAULT PRIVILEGES IN SCHEMA public '
+                f'REVOKE ALL ON TABLES FROM "{user}"'
+            )
+
+            app_tables = [
+                "candidate",
+                "bib",
+                "binary_model",
+                "binary_model_error",
+                "evidence_subcategory",
+                "model_evidence",
+                "model_evidence_waveband",
+                "obs_period",
+                "obs_period_error",
+            ]
+            for table in app_tables:
                 cur.execute(f'GRANT SELECT ON "{table}" TO "{user}"')
                 self.stdout.write(f"  GRANT SELECT ON {table}")
 
+            cur.execute(
+                f'REVOKE ALL ON SCHEMA pg_catalog FROM "{user}"'
+            )
+            cur.execute(
+                f'REVOKE ALL ON SCHEMA information_schema FROM "{user}"'
+            )
+
         self.stdout.write(self.style.SUCCESS(
-            f"\nRead-only role '{user}' is ready. "
-            f"Add READONLY_DB_USER and READONLY_DB_PASSWORD to your env file "
-            f"and restart the container."
+            f"\nRead-only role '{user}' is ready."
         ))

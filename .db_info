@@ -1,9 +1,0 @@
-# .db_info
-POSTGRES_DB=bobcat
-POSTGRES_USER=bobcat_user
-POSTGRES_PASSWORD=bobcat_psswd
-POSTGRES_HOST=db # Matches the service name in docker-compose.yml
-POSTGRES_PORT=5432
-
-READONLY_DB_USER=bobcat_readonly
-READONLY_DB_PASSWORD=<choose a password>

@@ -7,20 +7,22 @@ services:
       - postgres_data:/var/lib/postgresql/data
     env_file:
       - .db_info
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build: ./BOBcat_website/
     restart: always
-    # Use the Django development server for auto-reloading
-    command: python manage.py runserver 0.0.0.0:8001
     ports:
-      - "8001:8001"
-    volumes:
-      # Maps your local code to the container's working directory.
-      # IMPORTANT: Change '/app' to whatever WORKDIR is set in your Dockerfile!
-      - ./BOBcat_website/:/app
+      - "8001:8000"
     env_file:
       - .db_info
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:

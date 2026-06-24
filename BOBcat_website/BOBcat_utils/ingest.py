@@ -302,7 +302,7 @@ def validate_and_fill(indexed_df: pd.DataFrame) -> tuple[dict, list[str]]:
 
         fields[db_field] = fval
 
-    # Mass value filling via calc.update_masses
+    # Mass value filling
     m1 = fields.get("m1")
     m2 = fields.get("m2")
     mtot = fields.get("mtot")
@@ -310,15 +310,36 @@ def validate_and_fill(indexed_df: pd.DataFrame) -> tuple[dict, list[str]]:
     mu = fields.get("mu")
     q = fields.get("q")
 
-    try:
-        mass_array, updated = calc.update_masses(m1, m2, mtot, mc, mu, q)
-        mass_fields = ["m1", "m2", "mtot", "mc", "mu", "q"]
-        for i, mf in enumerate(mass_fields):
-            if mf not in fields and mass_array[i] is not None and not np.isnan(mass_array[i]):
-                fields[mf] = mass_array[i]
-                warnings.append(f"Filled {mf}={mass_array[i]:.6g}")
-    except Exception as e:
-        warnings.append(f"Mass filling failed: {e}")
+    if m1 is None or m2 is None:
+        try:
+            m1_lin, m2_lin = calc.find_m1_m2(m1, m2, mtot, q, mc, mu)
+            if m1 is None and m1_lin is not None:
+                m1 = np.log10(m1_lin)
+                fields["m1"] = m1
+                warnings.append(f"Filled m1={m1:.6g}")
+            if m2 is None and m2_lin is not None:
+                m2 = np.log10(m2_lin)
+                fields["m2"] = m2
+                warnings.append(f"Filled m2={m2:.6g}")
+        except Exception as e:
+            warnings.append(f"Could not derive m1/m2: {e}")
+
+    if m1 is not None and m2 is not None:
+        fill_funcs = [
+            ("mtot", calc.Mtot_calc),
+            ("mc", calc.Mc_calc),
+            ("mu", calc.mu_calc),
+            ("q", calc.q_calc),
+        ]
+        for name, func in fill_funcs:
+            if name not in fields:
+                try:
+                    val = func(m1, m2)
+                    if val is not None and not np.isnan(val):
+                        fields[name] = val
+                        warnings.append(f"Filled {name}={val:.6g}")
+                except Exception as e:
+                    warnings.append(f"Failed to compute {name}: {e}")
 
     # Frequency / period filling
     period_days = _safe_float(_get_cell(indexed_df, "orbital period (earth frame)"))
@@ -639,7 +660,17 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
         gw_strain = None
         mc_log = fields.get("mc")
         lum_dist = candidate_cache.get(ned_name, {}).get("lum_dist")
+        if lum_dist is None:
+            try:
+                lum_dist = Candidate.objects.get(name=ned_name).lum_dist
+            except Candidate.DoesNotExist:
+                pass
+
         freq_hz = _safe_float(_get_cell(indexed, "orbital frequency (earth frame)"))
+        if freq_hz is None:
+            period_yr = fields.get("rm_orb_period")
+            if period_yr is not None and period_yr > 0:
+                freq_hz = 1.0 / (period_yr * DAYS_PER_YEAR * 86400)
 
         if mc_log is not None and lum_dist is not None and freq_hz is not None:
             try:
