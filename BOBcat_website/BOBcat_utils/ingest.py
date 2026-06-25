@@ -1,6 +1,8 @@
+import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -500,6 +502,24 @@ def parse_evidence(indexed_df: pd.DataFrame) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 NED_MAX_WORKERS = 4
+NED_CACHE_PATH = Path(__file__).resolve().parent.parent / "data" / "ned_cache.json"
+
+
+def _load_ned_cache() -> dict:
+    try:
+        if NED_CACHE_PATH.exists():
+            return json.loads(NED_CACHE_PATH.read_text())
+    except Exception as e:
+        logger.warning("Could not load NED disk cache: %s", e)
+    return {}
+
+
+def _save_ned_cache(cache: dict) -> None:
+    try:
+        NED_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        NED_CACHE_PATH.write_text(json.dumps(cache, indent=2))
+    except Exception as e:
+        logger.warning("Could not save NED disk cache: %s", e)
 
 
 def resolve_candidate(ned_name: str) -> dict:
@@ -528,17 +548,50 @@ def resolve_candidate(ned_name: str) -> dict:
 
 
 def resolve_candidates_parallel(names: list[str]) -> dict[str, dict]:
-    """Resolve multiple candidates via NED in parallel (I/O-bound)."""
+    """Resolve multiple candidates via NED in parallel (I/O-bound).
+
+    Checks the DB and a disk cache before hitting NED, so re-runs only
+    query objects that have never been resolved before.
+    """
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=NED_MAX_WORKERS) as pool:
-        futures = {pool.submit(resolve_candidate, name): name for name in names}
-        for future in as_completed(futures):
-            name = futures[future]
-            try:
-                results[name] = future.result()
-            except Exception as e:
-                logger.error("NED resolution crashed for %s: %s", name, e)
-                results[name] = {"jra": 0.0, "jdec": 0.0, "redshift": None, "lum_dist": None}
+
+    # 1. Pull already-resolved candidates from the DB.
+    for c in Candidate.objects.filter(name__in=names):
+        if c.jra and c.redshift is not None:
+            results[c.name] = {
+                "jra": c.jra,
+                "jdec": c.jdec,
+                "redshift": c.redshift,
+                "lum_dist": c.lum_dist,
+            }
+            logger.info("Skipping NED for %s — found in DB", c.name)
+
+    # 2. Check disk cache for anything not in the DB.
+    disk_cache = _load_ned_cache()
+    for name in names:
+        if name not in results and name in disk_cache:
+            results[name] = disk_cache[name]
+            logger.info("Skipping NED for %s — found in disk cache", name)
+
+    # 3. Only hit NED for names not satisfied by DB or cache.
+    to_resolve = [n for n in names if n not in results]
+    if to_resolve:
+        logger.info("Querying NED for %d candidates (%d threads)...", len(to_resolve), NED_MAX_WORKERS)
+        with ThreadPoolExecutor(max_workers=NED_MAX_WORKERS) as pool:
+            futures = {pool.submit(resolve_candidate, name): name for name in to_resolve}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    ned_result = future.result()
+                    results[name] = ned_result
+                    disk_cache[name] = ned_result
+                except Exception as e:
+                    logger.error("NED resolution crashed for %s: %s", name, e)
+                    results[name] = {"jra": 0.0, "jdec": 0.0, "redshift": None, "lum_dist": None}
+        _save_ned_cache(disk_cache)
+    else:
+        logger.info("All %d candidates resolved from DB/cache — skipping NED", len(names))
+
     return results
 
 
