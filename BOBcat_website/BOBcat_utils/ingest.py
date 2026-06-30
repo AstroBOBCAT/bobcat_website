@@ -557,7 +557,7 @@ def resolve_candidates_parallel(names: list[str]) -> dict[str, dict]:
 
     # 1. Pull already-resolved candidates from the DB.
     for c in Candidate.objects.filter(name__in=names):
-        if c.jra and c.redshift is not None:
+        if c.jra is not None and c.redshift is not None:
             results[c.name] = {
                 "jra": c.jra,
                 "jdec": c.jdec,
@@ -637,13 +637,11 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
         logger.warning("Dropped %d duplicate sheet entries", before - len(model_list))
 
     # ── 2. Resolve candidates from NED (parallel) ────────────────────
-    print("DEBUG: RESOLVING CANDIDATES")
     unique_names = list(model_list["NED Name"].unique())
     logger.info("Resolving %d candidates via NED (%d threads)...", len(unique_names), NED_MAX_WORKERS)
     candidate_cache = resolve_candidates_parallel(unique_names)
 
     # ── 3. Create or skip Candidate rows ───────────────────────────────
-    print("DEBUG: CREATE OR SKIP CANDIDATES")
     for name, info in candidate_cache.items():
         _, created = Candidate.objects.get_or_create(
             name=name,
@@ -660,7 +658,6 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             logger.info("Created candidate: %s", name)
 
     # ── 4. Process each parameter sheet ────────────────────────────────
-    print("DEBUG: PROCESS PARAM SHEETS")
     for _, row in model_list.iterrows():
         ned_name = row["NED Name"]
         paper_link = row["Paper Link"]
@@ -687,15 +684,14 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
 
         indexed = _index_param_sheet(param_df)
 
-        print("DEBUG: GOT A PARAM SHEET")
         # ── Bib ──
         _, bibcode = extract_bibcode(paper_link)
-        print(f"DEBUG: SOURCE {ned_name} FOUND BIBCODE {bibcode} for {paper_link}")
+        logger.info("Source %s: bibcode %s from %s", ned_name, bibcode, paper_link)
         if not bibcode:
             all_warnings.append(f"No bibcode from link: {paper_link}")
             continue
-        if len(bibcode) > 25:
-            all_warnings.append(f"Bibcode too long ({len(bibcode)} chars), skipping: {bibcode}")
+        if len(bibcode) > 29:
+            all_warnings.append(f"Bibcode too long ({len(bibcode)} > 29 chars), skipping: {bibcode}")
             continue
 
         bib, created = Bib.objects.get_or_create(
@@ -798,7 +794,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
                 category=ev["category"],
                 name=ev["subcategory_name"],
             )
-            print(f"for source {ned_name} found subcategory {ev["subcategory_name"]}")
+            logger.info("Source %s: evidence subcategory '%s'", ned_name, ev["subcategory_name"])
             model_ev, _ = ModelEvidence.objects.get_or_create(
                 binary_model=binary_model,
                 subcategory=subcat,

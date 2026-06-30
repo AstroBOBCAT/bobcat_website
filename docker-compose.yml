@@ -16,13 +16,38 @@ services:
   backend:
     build: ./BOBcat_website/
     restart: always
-    ports:
-      - "8001:8000"
+    # No external port — nginx handles public access on port 80
     env_file:
       - .db_info
     depends_on:
       db:
         condition: service_healthy
+
+  dachs:
+    build: ./dachs/
+    restart: always
+    env_file:
+      - .db_info
+    environment:
+      # Set DACHS_SERVER_URL to the public base URL of the site so DACHS
+      # generates correct self-referential URLs in capabilities/VOTable responses.
+      # Defaults to http://localhost for local development.
+      - DACHS_SERVER_URL=${DACHS_SERVER_URL:-http://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    # No external port — nginx routes /tap/* to dachs:8080
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - dachs
 
   ingest:
     build: ./BOBcat_website/

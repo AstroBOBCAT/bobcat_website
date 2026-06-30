@@ -121,12 +121,10 @@ class BinaryModel(models.Model):
     separation = models.FloatField(null=True, blank=True, help_text="Projected separation in parsecs")
     rm_orb_period = models.FloatField(
         null=True, blank=True,
-        db_column='RM_orb_period',
         help_text="Earth-frame orbital period in years",
     )
     rm_orb_period_epoch = models.FloatField(
         null=True, blank=True,
-        db_column='RM_orb_period_epoch',
         help_text="Reference epoch (MJD) for the orbital period",
     )
     # Calculated fields
