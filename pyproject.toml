@@ -29,3 +29,18 @@ dependencies = [
 [project.urls]
 "Homepage" = "http://sarahspolaor.faculty.wvu.edu/"
 "Issues" = "https://github.com/jessydno/BOBcat/issues"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "BOBcat_website.settings"
+pythonpath = ["BOBcat_website"]
+testpaths = ["tests"]
+markers = [
+    "network: hits a live external service (NED/SIMBAD/astropy name resolver), opt-in only",
+    "django_db: requires a real Postgres test database",
+]
+# pytest-django reads DJANGO_SETTINGS_MODULE (and settings.py reads
+# DJANGO_SECRET_KEY with no fallback) before any conftest.py in tests/ gets
+# a chance to run, so the env var has to be injected via pytest-env instead.
+env = [
+    "DJANGO_SECRET_KEY=test-secret-key-not-for-production",
+]
