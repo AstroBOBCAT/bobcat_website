@@ -149,7 +149,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
-if not DEBUG:
+# These all assume something in front of Django actually terminates HTTPS
+# and forwards X-Forwarded-Proto. Tied to DJANGO_BEHIND_TLS rather than just
+# `not DEBUG`: the docker-compose nginx has no TLS listener, so with these on
+# but no TLS anywhere, SECURE_SSL_REDIRECT sends every request to an https
+# port nothing is listening on, and SESSION/CSRF_COOKIE_SECURE stop the
+# browser from ever sending those cookies back over plain HTTP -- breaking
+# logins and CSRF-protected forms site-wide, not just redirecting. Set
+# DJANGO_BEHIND_TLS=1 once a real TLS terminator (nginx cert or an upstream
+# load balancer) is actually in place.
+if not DEBUG and os.environ.get('DJANGO_BEHIND_TLS', '0') != '0':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
