@@ -31,6 +31,11 @@ python manage.py setup_readonly_db_user || true
 echo "Collecting static files..."
 python manage.py collectstatic --no-input
 
+if [ "$#" -gt 0 ]; then
+    echo "Running command: $@"
+    exec "$@"
+fi
+
 echo "Starting gunicorn..."
 exec gunicorn BOBcat_website.wsgi:application \
     --bind 0.0.0.0:${PORT:-8000} \
