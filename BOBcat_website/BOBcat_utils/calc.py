@@ -904,6 +904,9 @@ def strain_calc(Mc,Dl,f_grav):
 
     # Define constants used in strain equation.
     c = 9.7146e-15 #speed of light in units of Mpc s^-1
+
+    # Convert mass
+    Mc = 10**Mc
     
     # Check that the number of arugments given to the function is
     # correct and they are all some form of a number.
