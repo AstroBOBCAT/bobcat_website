@@ -17,6 +17,15 @@ properties.
 
 
 ###########################
+#  CONSTANTS 
+###########################
+
+s_per_year = 31557600 # From IAU website (31.5576 Ms = 365.25 d). Note of warning, google, wolfram converters and AI don't get this right!!!
+
+G = 4.5170e-48 # Gravitational constant in units of Mpc^3 M_solar^-1 s^-2   
+
+
+###########################
 #  MASS CALCULATIONS
 ###########################
 
@@ -178,7 +187,7 @@ def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None
         pass
 
     # Finally return m1 and m2 values.
-    return m1, m2
+    return float(np.log10(m1)), float(np.log10(m2))
 
 
 
@@ -205,7 +214,7 @@ def Mc_calc(m1,m2):
     m2 = 10**m2
     Mc_lin = (((m1*m2)**3)/(m1+m2))**(1/5)
     Mc = np.log10(Mc_lin)
-    return Mc
+    return float(Mc)
 
 
 
@@ -232,7 +241,7 @@ def Mtot_calc(m1,m2):
     m2 = 10**m2
     Mtot_lin = m1+m2
     Mtot = np.log10(Mtot_lin)
-    return Mtot
+    return float(Mtot)
   
 def mu_calc(m1,m2):
     '''.
@@ -258,7 +267,7 @@ def mu_calc(m1,m2):
     m2 = 10**m2
     mu_lin = (m1*m2)/(m1+m2)
     mu = np.log10(mu_lin)
-    return mu
+    return float(mu)
 
 
 
@@ -894,7 +903,6 @@ def strain_calc(Mc,Dl,f_grav):
     '''
 
     # Define constants used in strain equation.
-    G = 4.5170e-48 #gravitational constant in units of Mpc^3 M_solar^-1 s^-2   
     c = 9.7146e-15 #speed of light in units of Mpc s^-1
     
     # Check that the number of arugments given to the function is
@@ -904,10 +912,118 @@ def strain_calc(Mc,Dl,f_grav):
         # equation from https://iopscience.iop.org/article/10.3847/1538-4357/ababa1/pdf, and http://www.physics.usu.edu/Wheeler/GenRel2013/Notes/GravitationalWaves.pdf
         h = 2*(((np.pi*f_grav)**(2/3))*((G*Mc)**(5/3)))/((c**4)*(Dl))
         return h
-    # If either any of the arguments are not numerical then throw an error.
+    # If any of the arguments are not numerical then throw an error.
     else:
         raise RuntimeError("Arguments given are incorrect. 3 numerical values needed (Mc, Dl, f_grav)")
 
+
+def tgw_calc(a,mtot,mu):
+    '''.
+
+    Calculate time to coalescence based on purely GW radiation.
+    Assumed e = 0, general relativity.
+
+    Inputs:
+        a = semi-major axis in parsecs.
+        mtot = log10( total mass in Msun units )
+        mu = log10( reduced mass in Msun units )
+
+    Outputs:
+        t_gw = time to coalescence in years
+
+    '''
+
+    # Define constants used in strain equation.
+    c = 9.7146e-15 #speed of light in units of Mpc s^-1
+
+    # Convert semi-major axis to be consistent with other variables in below equation.
+    a = a * 1e-6 # Mpc per pc
+
+    # Expand log mass values
+    mtot = 10**mtot
+    mu   = 10**mu
+    
+    # Check N args and all numerical
+    if isinstance(a, (int, float)) and isinstance(mtot, (int, float)) and isinstance(mu, (int, float)):
+
+        # Equation from Peters 1964 or from Maggiore book.
+        t_gw = (5 * c**5 * a**4) / (256 * G**3 * mtot**2 * mu)
+        t_gw = t_gw / s_per_year
+        return t_gw
+
+    # If any of the arguments are not numerical then throw an error.
+    else:
+        raise RuntimeError("Arguments given are incorrect. 3 numerical values needed (a, mtot, mu)")
+
+
+###########################
+#  KEPLER'S LAWS
+###########################
+def kepler_semimajor(period_years,mtot):
+    """
+    Calculate binary semi-major axis from Kepler's third law.
+
+    Parameters
+    ----------
+    period_years : float
+        Orbital period in years.
+
+    log10_total_mass_msun : float
+        log10(total binary mass in solar masses).
+
+    Returns
+    -------
+    float
+        Semi-major axis in parsecs.
+    """
+
+    # Convert inputs
+    period_seconds = period_years * s_per_year
+    mtot = 10.0**mtot
+
+    print(f"found {period_seconds} and {mtot}")
+    
+    # Kepler's third law:
+    # a^3 = G M P^2 / 4 pi^2
+    a = (G * mtot * period_seconds**2 / (4.0 * math.pi**2)) ** (1.0 / 3.0)
+
+    # Convert Mpc to pc
+    a_pc = a * 1.e6
+
+    return a_pc
+
+def kepler_period(a_pc, mtot):
+    """
+    Calculate binary orbital period from Kepler's third law.
+
+    Parameters
+    ----------
+    a_pc : float
+        Binary semi-major axis in parsecs.
+
+    mtot : float
+        log10(total binary mass in solar masses).
+
+    Returns
+    -------
+    float
+        Orbital period in years.
+    """
+
+    # Convert inputs
+    # a is converted from pc to Mpc because G is assumed to be in
+    # units of Mpc^3 Msun^-1 s^-2
+    a = a_pc * 1.0e-6
+    mtot = 10.0**mtot
+
+    # Kepler's third law:
+    # P = sqrt(4 pi^2 a^3 / G M)
+    period_seconds = math.sqrt((4.0 * math.pi**2 * a**3) / (G * mtot))
+
+    # Convert seconds to years
+    period_years = period_seconds / s_per_year
+
+    return period_years
 
 
 ###########################
@@ -941,21 +1057,21 @@ def freq_calc(T = None, f_orb = None, f_grav = None):
     
     if not isnull(T):
         #change T into seconds
-        T_sec = T*31536000
+        T_sec = T*s_per_year
         if isnull(f_orb):
-            f_orb = (2*np.pi)/T_sec
+            f_orb = 1/T_sec
         if isnull(f_grav):
             f_grav = 2*f_orb
     elif not isnull(f_orb):
         #perform calculations using f_orb
-        T = (2*np.pi)/f_orb #in seconds
-        T = T/31536000 #in years
+        T = 1/f_orb #in seconds
+        T = T/s_per_year#in years
         if f_grav == None:
             f_grav = 2*f_orb
     elif not f_grav == None:
         #perform calculations using f_grav
-        T_sec = (4*np.pi)/f_grav #in seconds
-        T = T_sec/31536000 #in years
+        T_sec = (2)/f_grav #in seconds
+        T = T_sec/s_per_year #in years
         f_orb = (0.5)*f_grav
         #should not need to check to see if new calculations are
         #needed for assignment as both T and f_orb==None to reach this
