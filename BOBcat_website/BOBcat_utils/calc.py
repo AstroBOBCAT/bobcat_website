@@ -893,7 +893,7 @@ def strain_calc(Mc,Dl,f_grav):
     use of units.
 
     Inputs:
-        Mc = chirp mass, units = M_solar
+        Mc = chirp mass, units = log10(M_solar)
         Dl = luminosity distance, units = Mpc
         f_grav = gravitational wave frequency, units = s^-1(Hz)
 
