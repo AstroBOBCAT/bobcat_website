@@ -984,8 +984,6 @@ def kepler_semimajor(period_years,mtot):
     period_seconds = period_years * s_per_year
     mtot = 10.0**mtot
 
-    print(f"found {period_seconds} and {mtot}")
-    
     # Kepler's third law:
     # a^3 = G M P^2 / 4 pi^2
     a = (G * mtot * period_seconds**2 / (4.0 * math.pi**2)) ** (1.0 / 3.0)
