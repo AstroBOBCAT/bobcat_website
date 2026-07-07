@@ -723,7 +723,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
 
         if mc_log is not None and lum_dist is not None and freq_hz is not None:
             try:
-                gw_strain = calc.strain_calc(10**mc_log, lum_dist, 2 * freq_hz)
+                gw_strain = calc.strain_calc(mc_log, lum_dist, 2 * freq_hz)
             except Exception as e:
                 all_warnings.append(f"GW strain calc failed for {ned_name}: {e}")
 
