@@ -65,6 +65,21 @@ VALID_RANGES = {
 
 VALID_ERROR_TYPES = {et[0] for et in ERROR_TYPE_CHOICES}
 
+# Sheet parameter names that carry an Error / Error type column pair.
+_NUMERIC_PARAMS = [
+    "eccentricity", "log(m1)", "log(m2)", "log(total mass)",
+    "log(chirp mass)", "log(reduced mass)", "q", "inclination",
+    "semi-major axis", "separation", "orbital period (earth frame)",
+]
+
+# When True, a sheet value for any of _NUMERIC_PARAMS is only used to fill
+# a BinaryModel field (and, transitively, to calculate other fields from
+# it) if that value has a "valid" associated error: either an Error value
+# AND an Error type, or an Error type of "Assumed" (which may carry no
+# explicit Error value). Values without a valid error are treated as if
+# blank. See _row_has_valid_error().
+STRICT_ERROR = True
+
 EVIDENCE_CATEGORY_MAP = {
     # DB value → DB value (identity, for sheet values that already match)
     "spectral_line_variability": EvidenceCategory.SPECTRAL_LINE_VARIABILITY,
@@ -254,6 +269,30 @@ def _is_blank(val) -> bool:
     return str(val).strip().lower() in _BLANK
 
 
+def _row_has_valid_error(indexed_df: pd.DataFrame, param: str) -> bool:
+    """True if `param`'s row has an Error value and a recognized Error
+    type, or an Error type of "Assumed" (which may carry no explicit
+    value). Used both to decide whether to record an error (parse_errors)
+    and, under STRICT_ERROR, whether to use the value at all
+    (validate_and_fill)."""
+    err_raw = _get_cell(indexed_df, param, "Error")
+    etype_raw = _get_cell(indexed_df, param, "Error type")
+
+    if _is_blank(etype_raw):
+        return False
+    etype_str = str(etype_raw).strip()
+    etype_is_assumed = etype_str.lower() == "assumed"
+
+    if _is_blank(err_raw) and not etype_is_assumed:
+        return False
+
+    etype_normalized = _ERROR_TYPE_ALIASES.get(etype_str.lower(), etype_str)
+    if etype_normalized is not None and etype_normalized not in VALID_ERROR_TYPES:
+        logger.warning("Unknown error type '%s' for %s, skipping", etype_str, param)
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Parsing a parameter sheet
 # ---------------------------------------------------------------------------
@@ -283,6 +322,11 @@ def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -
     """Validate parameter values, fill missing masses/frequencies and
     derived quantities (Kepler semi-major axis, GW strain, inspiral time).
 
+    If STRICT_ERROR is True, sheet values for parameters in _NUMERIC_PARAMS
+    are only used (and thus only feed the mass/frequency/derived-quantity
+    calculations below) when they have a valid associated error; see
+    _row_has_valid_error().
+
     If q is tagged as a lower limit, derived quantities are filled as the
     midpoint of the range spanned by q = q_given .. 1, and a range error
     (error_type=None, following the "range" alias convention) is emitted
@@ -300,6 +344,14 @@ def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -
 
         if db_field in STRING_FIELDS:
             fields[db_field] = str(raw)[:750]
+            continue
+
+        if (STRICT_ERROR and sheet_name in _NUMERIC_PARAMS
+                and not _row_has_valid_error(indexed_df, sheet_name)):
+            warnings.append(
+                f"{sheet_name}={raw}: skipped (STRICT_ERROR is on and this "
+                f"value has no valid associated error)"
+            )
             continue
 
         fval = _safe_float(raw)
@@ -362,7 +414,7 @@ def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -
         # Frequency / period filling
         if f.get("rm_orb_period") is None and freq_hz_sheet is not None:
             try:
-                _, T_yr, _ = calc.freq_calc(f_orb=freq_hz_sheet)
+                _, T_yr, _ = calc.freq_calc(orbital_frequency_hz=freq_hz_sheet)
                 if T_yr is not None and not np.isnan(T_yr):
                     f["rm_orb_period"] = T_yr
                     notes.append(f"Filled rm_orb_period={T_yr:.6g} yr")
@@ -485,12 +537,6 @@ def _check_mass_consistency(fields: dict, warnings: list[str]):
 # Error parsing
 # ---------------------------------------------------------------------------
 
-_NUMERIC_PARAMS = [
-    "eccentricity", "log(m1)", "log(m2)", "log(total mass)",
-    "log(chirp mass)", "log(reduced mass)", "q", "inclination",
-    "semi-major axis", "separation", "orbital period (earth frame)",
-]
-
 _ERROR_TYPE_ALIASES = {
     "two sided": "Two-sided",
     "two-sided": "Two-sided",
@@ -506,36 +552,37 @@ _ERROR_TYPE_ALIASES = {
 def parse_errors(indexed_df: pd.DataFrame) -> list[dict]:
     errors = []
     for param in _NUMERIC_PARAMS:
+        if not _row_has_valid_error(indexed_df, param):
+            continue
+
         err_raw = _get_cell(indexed_df, param, "Error")
         etype_raw = _get_cell(indexed_df, param, "Error type")
-        if _is_blank(err_raw) or _is_blank(etype_raw):
-            continue
-
         etype_str = str(etype_raw).strip()
         etype_normalized = _ERROR_TYPE_ALIASES.get(etype_str.lower(), etype_str)
-        if etype_normalized is not None and etype_normalized not in VALID_ERROR_TYPES:
-            logger.warning("Unknown error type '%s' for %s, skipping", etype_str, param)
-            continue
 
-        err_str = str(err_raw).strip()
-        if "," in err_str:
-            parts = err_str.split(",", 1)
-        elif " - " in err_str:
-            parts = err_str.split(" - ", 1)
-        else:
-            parts = [err_str]
-
-        try:
-            if len(parts) == 2:
-                error_lower = float(parts[0].strip())
-                error_upper = float(parts[1].strip())
+        if not _is_blank(err_raw):
+            err_str = str(err_raw).strip()
+            if "," in err_str:
+                parts = err_str.split(",", 1)
+            elif " - " in err_str:
+                parts = err_str.split(" - ", 1)
             else:
-                val = abs(float(parts[0].strip()))
-                error_lower = -val
-                error_upper = val
-        except ValueError:
-            logger.warning("Could not parse error '%s' for %s", err_str, param)
-            continue
+                parts = [err_str]
+
+            try:
+                if len(parts) == 2:
+                    error_lower = float(parts[0].strip())
+                    error_upper = float(parts[1].strip())
+                else:
+                    val = abs(float(parts[0].strip()))
+                    error_lower = -val
+                    error_upper = val
+            except ValueError:
+                logger.warning("Could not parse error '%s' for %s", err_str, param)
+                continue
+        else:
+            error_lower = 0.0
+            error_upper = 0.0
 
         db_field = PARAM_TO_FIELD.get(param, param)
 

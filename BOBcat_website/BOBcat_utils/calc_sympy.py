@@ -8,10 +8,13 @@ from pandas import isnull
 """
 BOBcat calc library -- sympy edition.
 
-Drop-in alternate to calc.py: same function names, signatures, argument
-order, and unit conventions (mass parameters other than q are passed as
+Drop-in alternate to calc.py: same function behavior, argument order,
+and unit conventions (mass parameters other than q are passed as
 log10 solar masses), so `from BOBcat_utils import calc_sympy as calc`
-works unchanged.
+works unchanged for positional callers. Parameter names are more
+descriptive than calc.py's single-letter/short names (see each
+docstring for the calc.py-equivalent short name), and every public
+function is type-hinted.
 
 What is different:
 
@@ -63,7 +66,12 @@ class InvalidParameterError(CalcError, TypeError):
     """A parameter has the wrong type or an unphysical value."""
 
 
-def _require_number(name, value, description, allow_none=True):
+def _require_number(
+    name: str,
+    value: float | None,
+    description: str,
+    allow_none: bool = True,
+) -> float | None:
     """Return value unchanged if it is None (when allowed) or a real number;
     otherwise raise InvalidParameterError naming the argument."""
     if value is None and allow_none:
@@ -134,7 +142,7 @@ _PARAM_DESCRIPTIONS = {
 }
 
 
-def _explain_no_solution(pair, values):
+def _explain_no_solution(pair: tuple[str, str], values: dict) -> str:
     """Build a message saying why the chosen parameter pair admits no
     physical (real, positive) m1 and m2."""
     given = ", ".join(f"{name}={values[name]:.6g} (linear M_sun)"
@@ -165,15 +173,24 @@ def _explain_no_solution(pair, values):
 
 ##################
 
-def find_m1_m2(m1=None, m2=None, Mtot=None, q=None, Mc=None, mu=None):
+def find_m1_m2(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+) -> tuple[float, float]:
     '''
     Find m1 and m2 for a binary system given at least two of the six
     common mass parameters (m1, m2, Mtot, q, Mc, mu).
 
     Inputs (all default None):
 
-        m1, m2, Mtot, Mc, mu = masses in log10 solar masses
-        q = mass ratio m2/m1, dimensionless
+        primary_mass_log10 (m1), secondary_mass_log10 (m2),
+        total_mass_log10 (Mtot), chirp_mass_log10 (Mc),
+        reduced_mass_log10 (mu) = masses in log10 solar masses
+        mass_ratio (q) = mass ratio m2/m1, dimensionless
 
     Outputs:
 
@@ -187,6 +204,10 @@ def find_m1_m2(m1=None, m2=None, Mtot=None, q=None, Mc=None, mu=None):
     explanation; fewer than two parameters raise
     InsufficientParametersError.
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, q = total_mass_log10, mass_ratio
+    Mc, mu = chirp_mass_log10, reduced_mass_log10
+
     raw = {"m1": m1, "m2": m2, "Mtot": Mtot, "q": q, "Mc": Mc, "mu": mu}
     for name, value in raw.items():
         raw[name] = _require_number(name, value, _PARAM_DESCRIPTIONS[name])
@@ -262,60 +283,68 @@ _Mtot_lin = sp.lambdify((_m1, _m2), _Mtot_expr, "numpy")
 _mu_lin = sp.lambdify((_m1, _m2), _mu_expr, "numpy")
 
 
-def _log_mass_pair(func_name, m1, m2):
+def _log_mass_pair(
+    func_name: str,
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+) -> tuple[float, float]:
     """Validate a (log10 m1, log10 m2) pair and return linear masses."""
-    _require_number("m1", m1, _PARAM_DESCRIPTIONS["m1"], allow_none=False)
-    _require_number("m2", m2, _PARAM_DESCRIPTIONS["m2"], allow_none=False)
-    return 10.0 ** m1, 10.0 ** m2
+    _require_number("m1", primary_mass_log10, _PARAM_DESCRIPTIONS["m1"], allow_none=False)
+    _require_number("m2", secondary_mass_log10, _PARAM_DESCRIPTIONS["m2"], allow_none=False)
+    return 10.0 ** primary_mass_log10, 10.0 ** secondary_mass_log10
 
 
-def Mc_calc(m1, m2):
+def Mc_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''
     Calculate the chirp mass of a system given two masses.
 
-    Inputs:  m1, m2 = component masses, log10 solar masses
+    Inputs:  primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
     Outputs: Mc = chirp mass, log10 solar masses
     '''
-    m1_lin, m2_lin = _log_mass_pair("Mc_calc", m1, m2)
+    m1_lin, m2_lin = _log_mass_pair("Mc_calc", primary_mass_log10, secondary_mass_log10)
     return float(np.log10(_Mc_lin(m1_lin, m2_lin)))
 
 
-def Mtot_calc(m1, m2):
+def Mtot_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''
     Calculate the total mass of a system given two masses.
 
-    Inputs:  m1, m2 = component masses, log10 solar masses
+    Inputs:  primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
     Outputs: Mtot = total mass, log10 solar masses
     '''
-    m1_lin, m2_lin = _log_mass_pair("Mtot_calc", m1, m2)
+    m1_lin, m2_lin = _log_mass_pair("Mtot_calc", primary_mass_log10, secondary_mass_log10)
     return float(np.log10(_Mtot_lin(m1_lin, m2_lin)))
 
 
-def mu_calc(m1, m2):
+def mu_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''
     Calculate the reduced mass of a system given two masses.
 
-    Inputs:  m1, m2 = component masses, log10 solar masses
+    Inputs:  primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
     Outputs: mu = reduced mass, log10 solar masses
     '''
-    m1_lin, m2_lin = _log_mass_pair("mu_calc", m1, m2)
+    m1_lin, m2_lin = _log_mass_pair("mu_calc", primary_mass_log10, secondary_mass_log10)
     return float(np.log10(_mu_lin(m1_lin, m2_lin)))
 
 
-def q_calc(m1, m2):
+def q_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''
     Calculate the mass ratio of a system given two masses.
     Mass ratio is here defined 0 < q <= 1, so the argument order
     does not matter.
 
-    Inputs:  m1, m2 = component masses, log10 solar masses
+    Inputs:  primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
     Outputs: q = mass ratio, dimensionless
     '''
-    m1_lin, m2_lin = _log_mass_pair("q_calc", m1, m2)
+    m1_lin, m2_lin = _log_mass_pair("q_calc", primary_mass_log10, secondary_mass_log10)
     return min(m1_lin, m2_lin) / max(m1_lin, m2_lin)
 
 
-def q_limit(Mc, Mtot):
+def q_limit(chirp_mass_log10: float, total_mass_log10: float) -> tuple[float, float]:
     '''
     Convert a (chirp mass, total mass) pair to the two mass-ratio roots
     of the defining relation Mc = Mtot * (q / (1+q)**2)**(3/5), without
@@ -326,9 +355,10 @@ def q_limit(Mc, Mtot):
 
     Inputs:
 
-        Mc = chirp mass (e.g. an upper limit from a CW search),
-             log10 solar masses
-        Mtot = total mass of the SMBH binary, log10 solar masses
+        chirp_mass_log10 (Mc) = chirp mass (e.g. an upper limit from a
+             CW search), log10 solar masses
+        total_mass_log10 (Mtot) = total mass of the SMBH binary, log10
+             solar masses
 
     Outputs:
 
@@ -339,6 +369,8 @@ def q_limit(Mc, Mtot):
     for Mtot it raises InconsistentParametersError instead, so callers
     (and the website) survive bad inputs.
     '''
+    Mc, Mtot = chirp_mass_log10, total_mass_log10
+
     _require_number("Mc", Mc, _PARAM_DESCRIPTIONS["Mc"], allow_none=False)
     _require_number("Mtot", Mtot, _PARAM_DESCRIPTIONS["Mtot"], allow_none=False)
 
@@ -375,7 +407,14 @@ def q_limit(Mc, Mtot):
 # that used a consistent model.
 
 
-def mass_val_calc(m1=None, m2=None, Mtot=None, Mc=None, mu=None, q=None):
+def mass_val_calc(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+) -> list:
     """
     This is the BOBcat SMBHB mass value calculator! It will calculate
     estimates of Mass 1, Mass 2, Total Mass, Mass Ratio, Chirp Mass,
@@ -388,14 +427,17 @@ def mass_val_calc(m1=None, m2=None, Mtot=None, Mc=None, mu=None, q=None):
     All values below are the outputs.
     Units for all: Solar Masses
 
-    m1 = Larger Mass
-    m2 = Smaller Mass
-    Mtot = Total Mass
-    q = Mass Ratio
-    Mc = Chirp Mass
-    mu = Reduced Mass
+    primary_mass_log10 (m1) = Larger Mass
+    secondary_mass_log10 (m2) = Smaller Mass
+    total_mass_log10 (Mtot) = Total Mass
+    mass_ratio (q) = Mass Ratio
+    chirp_mass_log10 (Mc) = Chirp Mass
+    reduced_mass_log10 (mu) = Reduced Mass
 
     """
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, Mc, mu, q = total_mass_log10, chirp_mass_log10, reduced_mass_log10, mass_ratio
+
     mass_array = [m1, m2, Mtot, Mc, mu, q]
 
     known = sum(1 for value in mass_array if not isnull(value))
@@ -414,7 +456,7 @@ def mass_val_calc(m1=None, m2=None, Mtot=None, Mc=None, mu=None, q=None):
 #  UPDATE (SELF-CONSISTENCY) FUNCTIONS
 ###############
 
-def _reconcile(given, calculated, tolerance):
+def _reconcile(given: float | None, calculated: float, tolerance: float) -> float:
     """Return `calculated` if `given` is missing or differs from it by
     at least `tolerance`; otherwise keep `given`."""
     if isnull(given) or abs(given - calculated) >= tolerance:
@@ -422,7 +464,15 @@ def _reconcile(given, calculated, tolerance):
     return given
 
 
-def update_m1(m1=None, m2=None, Mtot=None, q=None, Mc=None, mu=None, tolerance=1e5):
+def update_m1(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''
     Update the mass 1 value given to that calculated if the tolerance
     is not met. If no m1 is passed, or it differs from the value
@@ -436,11 +486,23 @@ def update_m1(m1=None, m2=None, Mtot=None, q=None, Mc=None, mu=None, tolerance=1
     Outputs:
         m1 = mass of first binary object
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, q = total_mass_log10, mass_ratio
+    Mc, mu = chirp_mass_log10, reduced_mass_log10
+
     m1_calced = find_m1_m2(m1, m2, Mtot, q, Mc, mu)[0]
     return _reconcile(m1, m1_calced, tolerance)
 
 
-def update_m2(m1=None, m2=None, Mtot=None, q=None, Mc=None, mu=None, tolerance=1e5):
+def update_m2(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''
     Update the mass 2 value given to that calculated if the tolerance
     is not met. If no m2 is passed, or it differs from the value
@@ -454,75 +516,110 @@ def update_m2(m1=None, m2=None, Mtot=None, q=None, Mc=None, mu=None, tolerance=1
     Outputs:
         m2 = mass of second binary object
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, q = total_mass_log10, mass_ratio
+    Mc, mu = chirp_mass_log10, reduced_mass_log10
+
     m2_calced = find_m1_m2(m1, m2, Mtot, q, Mc, mu)[1]
     return _reconcile(m2, m2_calced, tolerance)
 
 
-def update_Mc(m1, m2, Mc=None, tolerance=1e5):
+def update_Mc(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    chirp_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''
     Update the chirp mass value given to that calculated (from m1 and
     m2, both log10 solar masses) if the tolerance is not met.
 
     Inputs:
-        m1, m2 = component masses, log10 solar masses
-        Mc = chirp mass, log10 solar masses, default None
+        primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
+        chirp_mass_log10 (Mc) = chirp mass, log10 solar masses, default None
         tolerance = replacement threshold, default 1e5
 
     Outputs:
         Mc = chirp mass, log10 solar masses
     '''
-    return _reconcile(Mc, Mc_calc(m1, m2), tolerance)
+    return _reconcile(chirp_mass_log10, Mc_calc(primary_mass_log10, secondary_mass_log10), tolerance)
 
 
-def update_Mtot(m1, m2, Mtot=None, tolerance=1e5):
+def update_Mtot(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    total_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''
     Update the total mass value given to that calculated (from m1 and
     m2, both log10 solar masses) if the tolerance is not met.
 
     Inputs:
-        m1, m2 = component masses, log10 solar masses
-        Mtot = total mass, log10 solar masses, default None
+        primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
+        total_mass_log10 (Mtot) = total mass, log10 solar masses, default None
         tolerance = replacement threshold, default 1e5
 
     Outputs:
         Mtot = total mass, log10 solar masses
     '''
-    return _reconcile(Mtot, Mtot_calc(m1, m2), tolerance)
+    return _reconcile(total_mass_log10, Mtot_calc(primary_mass_log10, secondary_mass_log10), tolerance)
 
 
-def update_mu(m1, m2, mu=None, tolerance=1e5):
+def update_mu(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    reduced_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''
     Update the reduced mass value given to that calculated (from m1
     and m2, both log10 solar masses) if the tolerance is not met.
 
     Inputs:
-        m1, m2 = component masses, log10 solar masses
-        mu = reduced mass, log10 solar masses, default None
+        primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
+        reduced_mass_log10 (mu) = reduced mass, log10 solar masses, default None
         tolerance = replacement threshold, default 1e5
 
     Outputs:
         mu = reduced mass, log10 solar masses
     '''
-    return _reconcile(mu, mu_calc(m1, m2), tolerance)
+    return _reconcile(reduced_mass_log10, mu_calc(primary_mass_log10, secondary_mass_log10), tolerance)
 
 
-def update_q(m1, m2, q=None, tolerance=0.01):
+def update_q(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    mass_ratio: float | None = None,
+    tolerance: float = 0.01,
+) -> float:
     '''
     Update the mass ratio value given to that calculated (from m1 and
     m2, both log10 solar masses) if the tolerance is not met.
 
     Inputs:
-        m1, m2 = component masses, log10 solar masses
-        q = mass ratio, dimensionless, default None
+        primary_mass_log10 (m1), secondary_mass_log10 (m2) =
+             component masses, log10 solar masses
+        mass_ratio (q) = mass ratio, dimensionless, default None
         tolerance = replacement threshold, default 0.01
 
     Outputs:
         q = mass ratio, dimensionless
     '''
-    return _reconcile(q, q_calc(m1, m2), tolerance)
+    return _reconcile(mass_ratio, q_calc(primary_mass_log10, secondary_mass_log10), tolerance)
 
 
-def update_masses(m1, m2, Mtot, Mc, mu, q):
+def update_masses(
+    primary_mass_log10: float | None,
+    secondary_mass_log10: float | None,
+    total_mass_log10: float | None,
+    chirp_mass_log10: float | None,
+    reduced_mass_log10: float | None,
+    mass_ratio: float | None,
+) -> tuple[list, list]:
     '''
     Update all six of the mass values used to fully describe a binary
     system so they are mutually consistent. NOTE: this function only
@@ -530,13 +627,18 @@ def update_masses(m1, m2, Mtot, Mc, mu, q):
     tolerances cannot be set here.
 
     Inputs:
-        m1, m2, Mtot, Mc, mu = masses, log10 solar masses (or None)
-        q = mass ratio, dimensionless (or None)
+        primary_mass_log10 (m1), secondary_mass_log10 (m2),
+        total_mass_log10 (Mtot), chirp_mass_log10 (Mc),
+        reduced_mass_log10 (mu) = masses, log10 solar masses (or None)
+        mass_ratio (q) = mass ratio, dimensionless (or None)
 
     Outputs:
         ([m1, m2, Mtot, Mc, mu, q] after updating,
          list of the names of the values that changed)
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, Mc, mu, q = total_mass_log10, chirp_mass_log10, reduced_mass_log10, mass_ratio
+
     m1_updated = update_m1(m1, m2, Mtot, q, Mc, mu)
     m2_updated = update_m2(m1, m2, Mtot, q, Mc, mu)
     Mtot_updated = update_Mtot(m1, m2, Mtot)
@@ -558,7 +660,11 @@ def update_masses(m1, m2, Mtot, Mc, mu, q):
 #  STRAIN CALCULATIONS
 ###########################
 
-def strain_calc(Mc, Dl, f_grav):
+def strain_calc(
+    chirp_mass_log10: float,
+    luminosity_distance_mpc: float,
+    gw_frequency_hz: float,
+) -> float:
     '''
     Calculate strain amplitude using the NANOGrav "standard" strain
     equation as used in e.g. 2020ApJ...900..102A (the NANOGrav GW
@@ -566,14 +672,16 @@ def strain_calc(Mc, Dl, f_grav):
     use of units.
 
     Inputs:
-        Mc = chirp mass, units = log10(M_solar)
-        Dl = luminosity distance, units = Mpc
-        f_grav = gravitational wave frequency, units = s^-1 (Hz)
+        chirp_mass_log10 (Mc) = chirp mass, units = log10(M_solar)
+        luminosity_distance_mpc (Dl) = luminosity distance, units = Mpc
+        gw_frequency_hz (f_grav) = gravitational wave frequency, units = s^-1 (Hz)
 
     Outputs:
         h = GW characteristic strain, dimensionless
 
     '''
+    Mc, Dl, f_grav = chirp_mass_log10, luminosity_distance_mpc, gw_frequency_hz
+
     _require_number("Mc", Mc, "chirp mass, log10 M_sun", allow_none=False)
     for name, value, description in (
             ("Dl", Dl, "luminosity distance, Mpc"),
@@ -595,20 +703,26 @@ def strain_calc(Mc, Dl, f_grav):
     return h
 
 
-def tgw_calc(a, mtot, mu):
+def tgw_calc(
+    semimajor_axis_pc: float,
+    total_mass_log10: float,
+    reduced_mass_log10: float,
+) -> float:
     '''
     Calculate time to coalescence based on purely GW radiation.
     Assumed e = 0, general relativity.
 
     Inputs:
-        a = semi-major axis in parsecs.
-        mtot = log10( total mass in Msun units )
-        mu = log10( reduced mass in Msun units )
+        semimajor_axis_pc (a) = semi-major axis in parsecs.
+        total_mass_log10 (mtot) = log10( total mass in Msun units )
+        reduced_mass_log10 (mu) = log10( reduced mass in Msun units )
 
     Outputs:
         t_gw = time to coalescence in years
 
     '''
+    a, mtot, mu = semimajor_axis_pc, total_mass_log10, reduced_mass_log10
+
     for name, value, description in (
             ("a", a, "semi-major axis, pc"),
             ("mtot", mtot, "total mass, log10 M_sun"),
@@ -633,16 +747,16 @@ def tgw_calc(a, mtot, mu):
 #  KEPLER'S LAWS
 ###########################
 
-def kepler_semimajor(period_years, mtot):
+def kepler_semimajor(orbital_period_years: float, total_mass_log10: float) -> float:
     """
     Calculate binary semi-major axis from Kepler's third law.
 
     Parameters
     ----------
-    period_years : float
+    orbital_period_years : float
         Orbital period in years.
 
-    mtot : float
+    total_mass_log10 : float
         log10(total binary mass in solar masses).
 
     Returns
@@ -650,6 +764,8 @@ def kepler_semimajor(period_years, mtot):
     float
         Semi-major axis in parsecs.
     """
+    period_years, mtot = orbital_period_years, total_mass_log10
+
     _require_number("period_years", period_years, "orbital period, years", allow_none=False)
     _require_number("mtot", mtot, "total mass, log10 M_sun", allow_none=False)
     if period_years <= 0:
@@ -669,16 +785,16 @@ def kepler_semimajor(period_years, mtot):
     return a * 1.0e6
 
 
-def kepler_period(a_pc, mtot):
+def kepler_period(semimajor_axis_pc: float, total_mass_log10: float) -> float:
     """
     Calculate binary orbital period from Kepler's third law.
 
     Parameters
     ----------
-    a_pc : float
+    semimajor_axis_pc : float
         Binary semi-major axis in parsecs.
 
-    mtot : float
+    total_mass_log10 : float
         log10(total binary mass in solar masses).
 
     Returns
@@ -686,6 +802,8 @@ def kepler_period(a_pc, mtot):
     float
         Orbital period in years.
     """
+    a_pc, mtot = semimajor_axis_pc, total_mass_log10
+
     _require_number("a_pc", a_pc, "semi-major axis, pc", allow_none=False)
     _require_number("mtot", mtot, "total mass, log10 M_sun", allow_none=False)
     if a_pc <= 0:
@@ -708,7 +826,11 @@ def kepler_period(a_pc, mtot):
 #  FREQUENCY CONVERSION
 ###########################
 
-def freq_calc(T=None, f_orb=None, f_grav=None):
+def freq_calc(
+    orbital_period_years: float | None = None,
+    orbital_frequency_hz: float | None = None,
+    gw_frequency_hz: float | None = None,
+) -> list:
     """
     Read any of the orbital period in the source frame (in years), the
     orbital frequency in the source frame (in Hz), and the dominant
@@ -720,16 +842,16 @@ def freq_calc(T=None, f_orb=None, f_grav=None):
     f_orb = 1/T and f_grav = 2*f_orb, with the IAU year (31.5576 Ms).
 
     Args:
-        T = orbital period, years
-        f_orb = orbital frequency, Hz
-        f_grav = dominant gravitational wave frequency, Hz
+        orbital_period_years (T) = orbital period, years
+        orbital_frequency_hz (f_orb) = orbital frequency, Hz
+        gw_frequency_hz (f_grav) = dominant gravitational wave frequency, Hz
 
     Returns:
         [f_orb, T, f_grav]
     """
-    T = _require_number("T", T, "orbital period, years")
-    f_orb = _require_number("f_orb", f_orb, "orbital frequency, Hz")
-    f_grav = _require_number("f_grav", f_grav, "GW frequency, Hz")
+    T = _require_number("T", orbital_period_years, "orbital period, years")
+    f_orb = _require_number("f_orb", orbital_frequency_hz, "orbital frequency, Hz")
+    f_grav = _require_number("f_grav", gw_frequency_hz, "GW frequency, Hz")
 
     if T is not None and f_orb is not None and f_grav is not None:
         return [f_orb, T, f_grav]
@@ -759,7 +881,12 @@ def freq_calc(T=None, f_orb=None, f_grav=None):
     return [f_orb, T, f_grav]
 
 
-def update_Tforb(T=None, f_orb=None, f_grav=None, tolerance=1e-5):
+def update_Tforb(
+    orbital_period_years: float | None = None,
+    orbital_frequency_hz: float | None = None,
+    gw_frequency_hz: float | None = None,
+    tolerance: float = 1e-5,
+) -> tuple[float, float]:
     """
     Check the self-consistency of the orbital period T (years), the
     orbital frequency f_orb (Hz) and the GW frequency f_grav (Hz).
@@ -770,10 +897,10 @@ def update_Tforb(T=None, f_orb=None, f_grav=None, tolerance=1e-5):
     Returns:
         (T, f_orb)
     """
-    f_orb_calced, T_calced, _ = freq_calc(T, f_orb, f_grav)
+    f_orb_calced, T_calced, _ = freq_calc(orbital_period_years, orbital_frequency_hz, gw_frequency_hz)
 
-    T = _reconcile(T, T_calced, tolerance)
-    f_orb = _reconcile(f_orb, f_orb_calced, tolerance)
+    T = _reconcile(orbital_period_years, T_calced, tolerance)
+    f_orb = _reconcile(orbital_frequency_hz, f_orb_calced, tolerance)
 
     return T, f_orb
 
@@ -782,7 +909,12 @@ def update_Tforb(T=None, f_orb=None, f_grav=None, tolerance=1e-5):
 #  COSMOLOGY FUNCTIONS
 ###########################
 
-def cosmo_calc(z, H0=70, WM=0.3, WV=0.000085):
+def cosmo_calc(
+    redshift: float,
+    hubble_constant: float = 70,
+    omega_matter: float = 0.3,
+    omega_vacuum: float = 0.000085,
+) -> tuple[float, float, float]:
     """
     This is the BOBcat cosmological distance calculator. It was built
     upon the following: Cosmology calculator
@@ -794,8 +926,9 @@ def cosmo_calc(z, H0=70, WM=0.3, WV=0.000085):
     This version has been simplified to only include inputs necessary
     for the desired output array.
 
-    Required input: z (redshift)
-    Optional inputs: H0, WM (Omega_matter), WV (Omega_vacuum)
+    Required input: redshift (z)
+    Optional inputs: hubble_constant (H0), omega_matter (WM),
+                      omega_vacuum (WV)
 
     Outputs: (luminosity distance in Mpc,
               comoving radial distance in Mpc,
@@ -805,6 +938,8 @@ def cosmo_calc(z, H0=70, WM=0.3, WV=0.000085):
     the benchmark model. Other universes can be built via custom
     values of WM and WV.
     """
+    z, H0, WM, WV = redshift, hubble_constant, omega_matter, omega_vacuum
+
     _require_number("z", z, "redshift", allow_none=False)
     _require_number("H0", H0, "Hubble constant, km/s/Mpc", allow_none=False)
     if z < 0:
