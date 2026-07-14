@@ -314,12 +314,12 @@ def validate_and_fill(indexed_df: pd.DataFrame) -> tuple[dict, list[str]]:
 
     if m1 is None or m2 is None:
         try:
-            m1_lin, m2_lin = calc.find_m1_m2(m1, m2, mtot, q, mc, mu)
-            if m1 is None and m1_lin is not None:
+            m1, m2 = calc.find_m1_m2(m1, m2, mtot, q, mc, mu)
+            if m1 is None:
                 m1 = np.log10(m1_lin)
                 fields["m1"] = m1
                 warnings.append(f"Filled m1={m1:.6g}")
-            if m2 is None and m2_lin is not None:
+            if m2 is None:
                 m2 = np.log10(m2_lin)
                 fields["m2"] = m2
                 warnings.append(f"Filled m2={m2:.6g}")
@@ -706,7 +706,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
         all_warnings.extend(val_warnings)
 
         # ── GW strain ──
-        gw_strain = None
+        gw_strain_log = None
         mc_log = fields.get("mc")
         lum_dist = candidate_cache.get(ned_name, {}).get("lum_dist")
         if lum_dist is None:
@@ -723,7 +723,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
 
         if mc_log is not None and lum_dist is not None and freq_hz is not None:
             try:
-                gw_strain = calc.strain_calc(mc_log, lum_dist, 2 * freq_hz)
+                gw_strain_log = np.log10(calc.strain_calc(mc_log, lum_dist, 2 * freq_hz))
             except Exception as e:
                 all_warnings.append(f"GW strain calc failed for {ned_name}: {e}")
 
@@ -735,7 +735,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
                 bib_id=bibcode,
                 sheet_id=sk,
                 created_at=now,
-                gw_strain=gw_strain,
+                gw_strain=gw_strain_log,
                 **model_kwargs,
             )
             stats["models"] += 1
