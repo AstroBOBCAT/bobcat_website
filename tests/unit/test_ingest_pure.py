@@ -9,6 +9,7 @@ tested here open a database connection or make network calls.
 import pandas as pd
 import pytest
 
+import BOBcat_utils.ingest as ingest_module
 from BOBcat_utils.ingest import (
     _csv_url,
     _extract_sheet_key,
@@ -17,6 +18,8 @@ from BOBcat_utils.ingest import (
     _is_blank,
     _safe_float,
     extract_bibcode,
+    parse_errors,
+    validate_and_fill,
 )
 
 
@@ -145,3 +148,113 @@ def test_get_cell_duplicate_name_rows_returns_first():
         {"Name": ["q", "q"], "Value": ["0.5", "0.9"]}
     ).set_index("Name")
     assert _get_cell(df, "q") == "0.5"
+
+
+# ── parse_errors ─────────────────────────────────────────────────────────────
+
+def _param_df(name, value=None, error=None, error_type=None):
+    return pd.DataFrame(
+        {"Name": [name], "Value": [value], "Error": [error], "Error type": [error_type]}
+    ).set_index("Name")
+
+
+def test_parse_errors_ingested_when_value_and_type_present():
+    df = _param_df("q", value="0.5", error="0.1", error_type="Gaussian")
+    errors = parse_errors(df)
+    assert len(errors) == 1
+    assert errors[0]["error_type"] == "Gaussian"
+    assert errors[0]["error_lower"] == pytest.approx(-0.1)
+    assert errors[0]["error_upper"] == pytest.approx(0.1)
+
+
+def test_parse_errors_skipped_when_type_missing():
+    df = _param_df("q", value="0.5", error="0.1", error_type=None)
+    assert parse_errors(df) == []
+
+
+def test_parse_errors_skipped_when_value_missing_and_type_not_assumed():
+    df = _param_df("q", value="0.5", error=None, error_type="Gaussian")
+    assert parse_errors(df) == []
+
+
+def test_parse_errors_assumed_type_ingested_without_a_value():
+    df = _param_df("q", value="0.5", error=None, error_type="Assumed")
+    errors = parse_errors(df)
+    assert len(errors) == 1
+    assert errors[0]["error_type"] == "Assumed"
+    assert errors[0]["error_lower"] == pytest.approx(0.0)
+    assert errors[0]["error_upper"] == pytest.approx(0.0)
+
+
+def test_parse_errors_assumed_type_with_value_uses_given_value():
+    df = _param_df("q", value="0.5", error="0.2", error_type="Assumed")
+    errors = parse_errors(df)
+    assert len(errors) == 1
+    assert errors[0]["error_type"] == "Assumed"
+    assert errors[0]["error_lower"] == pytest.approx(-0.2)
+    assert errors[0]["error_upper"] == pytest.approx(0.2)
+
+
+# ── validate_and_fill / STRICT_ERROR ────────────────────────────────────────
+
+def _sheet_df(rows):
+    """rows: {sheet_name: (value, error, error_type)}"""
+    names, values, errors, etypes = [], [], [], []
+    for name, (value, error, etype) in rows.items():
+        names.append(name)
+        values.append(value)
+        errors.append(error)
+        etypes.append(etype)
+    return pd.DataFrame(
+        {"Name": names, "Value": values, "Error": errors, "Error type": etypes}
+    ).set_index("Name")
+
+
+def test_strict_error_is_on_by_default():
+    assert ingest_module.STRICT_ERROR is True
+
+
+def test_validate_and_fill_strict_error_skips_value_without_valid_error():
+    df = _sheet_df({
+        "log(m1)": ("8.5", None, None),
+        "log(m2)": ("8.0", "0.1", "Gaussian"),
+    })
+    fields, warnings, _ = validate_and_fill(df)
+    assert "m1" not in fields
+    assert fields["m2"] == pytest.approx(8.0)
+    assert any("STRICT_ERROR" in w for w in warnings)
+
+
+def test_validate_and_fill_strict_error_off_fills_values_without_errors(monkeypatch):
+    monkeypatch.setattr(ingest_module, "STRICT_ERROR", False)
+    df = _sheet_df({
+        "log(m1)": ("8.5", None, None),
+        "log(m2)": ("8.0", "0.1", "Gaussian"),
+    })
+    fields, _, _ = validate_and_fill(df)
+    assert fields["m1"] == pytest.approx(8.5)
+    assert fields["m2"] == pytest.approx(8.0)
+
+
+def test_validate_and_fill_strict_error_assumed_type_needs_no_value():
+    df = _sheet_df({
+        "log(m1)": ("8.5", None, "Assumed"),
+        "log(m2)": ("8.0", "0.1", "Gaussian"),
+    })
+    fields, _, _ = validate_and_fill(df)
+    assert fields["m1"] == pytest.approx(8.5)
+    assert fields["m2"] == pytest.approx(8.0)
+
+
+def test_validate_and_fill_strict_error_only_uses_valid_entries_to_derive():
+    # m1 has no valid error and is dropped under STRICT_ERROR, leaving only
+    # m2 -- not enough mass parameters to derive mtot/mc/mu/q from.
+    df = _sheet_df({
+        "log(m1)": ("8.5", None, None),
+        "log(m2)": ("8.0", "0.1", "Gaussian"),
+    })
+    fields, _, _ = validate_and_fill(df)
+    assert "mtot" not in fields
+    assert "mc" not in fields
+    assert "mu" not in fields
+    assert "q" not in fields

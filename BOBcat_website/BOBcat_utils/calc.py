@@ -1,6 +1,6 @@
-import numpy as np 
+import numpy as np
 import math
-from astropy.coordinates import SkyCoord 
+from astropy.coordinates import SkyCoord
 from pandas import isnull
 
 
@@ -17,12 +17,12 @@ properties.
 
 
 ###########################
-#  CONSTANTS 
+#  CONSTANTS
 ###########################
 
 s_per_year = 31557600 # From IAU website (31.5576 Ms = 365.25 d). Note of warning, google, wolfram converters and AI don't get this right!!!
 
-G = 4.5170e-48 # Gravitational constant in units of Mpc^3 M_solar^-1 s^-2   
+G = 4.5170e-48 # Gravitational constant in units of Mpc^3 M_solar^-1 s^-2
 
 
 ###########################
@@ -46,7 +46,14 @@ m1 and m2 values.
 
 ##################
 
-def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None):
+def find_m1_m2(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+) -> tuple[float, float]:
     '''.
 
     Find the values of m1 and m2 for a binary system given at
@@ -56,32 +63,34 @@ def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None
 
     Inputs:
 
-        m1 = mass of first binary object, units are same as the other
-             mass value given, default = None
-    
-        m2 = mass of second binary object, units = same as the other
-             mass value given, default = None
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses, default = None
 
-        Mtot = total mass of the system, units = same as the other
-               mass values given, default = None
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses, default = None
 
-        q = mass ratio of the system, units = NA, default = None
+        total_mass_log10 (Mtot) = total mass of the system, log10
+               solar masses, default = None
 
-        Mc = chirp mass of the system, units = same as the other mass
-             values given, default = None
+        mass_ratio (q) = mass ratio of the system, units = NA, default = None
 
-        mu = reduced mass of the system, units = same as the other
-             mass values given, default = None
-    
+        chirp_mass_log10 (Mc) = chirp mass of the system, log10
+             solar masses, default = None
+
+        reduced_mass_log10 (mu) = reduced mass of the system, log10
+             solar masses, default = None
+
     Outputs:
 
-        m1 = mass of first binary object, units = same as the units of
-             the masses passed to function
+        m1 = mass of first binary object, log10 solar masses
 
-        m2 = mass of second binary object, units = same as the units
-             of the masses passed to function
+        m2 = mass of second binary object, log10 solar masses
 
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, q = total_mass_log10, mass_ratio
+    Mc, mu = chirp_mass_log10, reduced_mass_log10
+
     try:
         m1 = 10**m1
     except:
@@ -102,11 +111,11 @@ def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None
         mu = 10**mu
     except:
         pass
-    # Check if m1 and m2 are actually passed to the function. If they are then we can skip the remaining 
+    # Check if m1 and m2 are actually passed to the function. If they are then we can skip the remaining
     # code and just pass them back.
     if m1!=None and m2!=None:
         pass
-    
+
     # If we have either m1 or m2 and Mtot, the other m1 or m2 can be found easily. Mtot = m1 + m2
     elif m1!=None and Mtot!=None:
         m2 = Mtot-m1
@@ -121,7 +130,7 @@ def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None
 
     # If we have both q and mu, we can easily find m1 and m2.
     elif q!=None and mu!=None:
-        m1 = mu*(q+1)/q 
+        m1 = mu*(q+1)/q
         m2 = mu*(q+1)
 
     # If we have either m1 or m2 and mu, the other m1 or m2 can be found easily. mu = (m1*m2) / (m1+m2)
@@ -151,17 +160,17 @@ def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None
         m2 = mu*(1 + (mu**(3/2)/(Mc**(5/2)-mu**(3/2))))
 
     # If we have both Mtot and Mc, we can rearrange their equations to find m1 and m2.
-    # There is an additional limit of Mc<=(0.43527528165*Mtot) which will prevent the 
-    # calculator from outputting complex numbers by ensuring the chirp mass is in 
+    # There is an additional limit of Mc<=(0.43527528165*Mtot) which will prevent the
+    # calculator from outputting complex numbers by ensuring the chirp mass is in
     # agreement with the total mass first. If they do not agree, the calculator will cut to the error.
-    elif Mtot!=None and Mc!=None and Mc<=(0.43527528165*Mtot): 
+    elif Mtot!=None and Mc!=None and Mc<=(0.43527528165*Mtot):
         m1 = (1/2)*(Mtot + (Mtot**2 - 4*(Mtot*(Mc**5))**(1/3))**(1/2))
         m2 = (1/2)*(Mtot - (Mtot**2 - 4*(Mtot*(Mc**5))**(1/3))**(1/2))
 
     # If we have Mc and Mtot but Mc doesn't follow the restriction given to if by the Mtot,
     # then raise an error.
     elif Mc!=None and Mtot!=None and Mc>=(0.43527528165*Mtot):
-            raise RuntimeError("Chrip mass too large to be correct, please check") 
+            raise RuntimeError("Chrip mass too large to be correct, please check")
 
     # If we have either m1 or m2 and Mc, the other m1 or m2 can be found be rearranging the chirp mass equation.
     # However, the equation involves several radicals, so as values of Mc get further from the actual (given m1),
@@ -191,25 +200,25 @@ def find_m1_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None
 
 
 
-def Mc_calc(m1,m2):
+def Mc_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''.
 
     Calculate the chirp mass of a system given two masses.
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
-    
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
+
     Outputs:
 
-        Mc = chirp mass of the system, units = same as the units of
-             the masses passed to function
+        Mc = chirp mass of the system, log10 solar masses
 
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
     m1 = 10**m1
     m2 = 10**m2
     Mc_lin = (((m1*m2)**3)/(m1+m2))**(1/5)
@@ -218,51 +227,51 @@ def Mc_calc(m1,m2):
 
 
 
-def Mtot_calc(m1,m2):
+def Mtot_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''.
 
     Calculate the total mass of a system given two masses.
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
-    
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
+
     Outputs:
 
-        Mtot = total mass of the system, units = same as the units of
-               the masses passed to function
+        Mtot = total mass of the system, log10 solar masses
 
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
     m1 = 10**m1
     m2 = 10**m2
     Mtot_lin = m1+m2
     Mtot = np.log10(Mtot_lin)
     return float(Mtot)
-  
-def mu_calc(m1,m2):
+
+def mu_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''.
-    
+
     Calculate the reduced mass of a system given two masses.
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
-    
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
+
     Outputs:
 
-        mu = reduced mass of the system, units = same as the units of
-             the masses passed to function
-    
+        mu = reduced mass of the system, log10 solar masses
+
     '''
-    
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+
     m1 = 10**m1
     m2 = 10**m2
     mu_lin = (m1*m2)/(m1+m2)
@@ -271,7 +280,7 @@ def mu_calc(m1,m2):
 
 
 
-def q_calc(m1,m2):
+def q_calc(primary_mass_log10: float, secondary_mass_log10: float) -> float:
     '''.
 
     Calculate the mass ratio of a system given two masses.
@@ -279,17 +288,18 @@ def q_calc(m1,m2):
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
-    
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
+
     Outputs:
 
         q = mass ratio of the system, units = N/A
 
     '''
+    m1, m2 = primary_mass_log10, secondary_mass_log10
 
     # Check to see if m1>m2, which is what we want to force so that q
     # remains between 0 and 1.
@@ -307,7 +317,7 @@ def q_calc(m1,m2):
 
 
 
-def q_limit(Mc,Mtot):
+def q_limit(chirp_mass_log10: float, total_mass_log10: float) -> tuple[float, float]:
     '''.
 
     Code to save you from ever again having to do the quadratic equation
@@ -320,17 +330,19 @@ def q_limit(Mc,Mtot):
 
     Inputs:
 
-        Mc = chirp mass upper limit derived from search. units are same as the other
-             mass value given
+        chirp_mass_log10 (Mc) = chirp mass upper limit derived from
+             search, log10 solar masses
 
-        Mtot = total mass of SMBH binary. units are same as the other
-             mass value given
-    
+        total_mass_log10 (Mtot) = total mass of SMBH binary, log10
+             solar masses
+
     Outputs:
 
         q = mass ratio of the system, units = N/A
 
     '''
+    Mc, Mtot = chirp_mass_log10, total_mass_log10
+
     Mc = 10**Mc
     Mtot = 10**Mtot
 
@@ -339,7 +351,7 @@ def q_limit(Mc,Mtot):
         -
         (4* (Mc**2) * (Mtot**2) * (Mc/Mtot)**(1/3))
     )
-    
+
     term2 = 2* (Mc**2)
 
     term3 = (Mtot**2) * ((Mc/Mtot)**(1/3))
@@ -360,14 +372,14 @@ def q_limit(Mc,Mtot):
     else:
         q = qplus
         multiplier = qminus
-        
+
 
     return q,multiplier
 
 
 
 
-    
+
 
 # This is the BOBcat SMBHB Candidate Mass Value Calculator. It will
 # read provided inputs of mass quantities and can calculate unknown
@@ -385,7 +397,14 @@ def q_limit(Mc,Mtot):
 # that used a consistent model.
 
 
-def mass_val_calc(m1 = None, m2 = None, Mtot = None, Mc = None, mu = None, q = None): #creating the function, reading the collection of inputs
+def mass_val_calc(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+) -> list:
     """.
 
     This is the BOBcat SMBHB mass value calculator! It will calculate
@@ -398,15 +417,18 @@ def mass_val_calc(m1 = None, m2 = None, Mtot = None, Mc = None, mu = None, q = N
     Choose two of any inputs from the list below.
     All values below are the outputs.
     Units for all: Solar Masses
-    
-    m1 = Larger Mass    
-    m2 = Smaller Mass
-    Mtot = Total Mass
-    q = Mass Ratio
-    Mc = Chirp Mass
-    mu = Reduced Mass
+
+    primary_mass_log10 (m1) = Larger Mass
+    secondary_mass_log10 (m2) = Smaller Mass
+    total_mass_log10 (Mtot) = Total Mass
+    mass_ratio (q) = Mass Ratio
+    chirp_mass_log10 (Mc) = Chirp Mass
+    reduced_mass_log10 (mu) = Reduced Mass
 
     """
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, Mc, mu, q = total_mass_log10, chirp_mass_log10, reduced_mass_log10, mass_ratio
+
     mass_array = [m1, m2, Mtot, Mc, mu, q]
 
     none_counter = 0
@@ -423,23 +445,31 @@ def mass_val_calc(m1 = None, m2 = None, Mtot = None, Mc = None, mu = None, q = N
         none_counter+=1
     if isnull(mu):
         none_counter+=1
-    
+
     if none_counter > 5:
         print("At least two of the inputs must be known to calculate the other values.")
         return mass_array
-    
+
     mass_array, updated_masses = update_masses(m1, m2, Mtot, Mc, mu, q)
 
 
-    return mass_array 
+    return mass_array
 
 
 
-## update_m1.py has the code for the update_m1 function. 
+## update_m1.py has the code for the update_m1 function.
 
 
 ###############
-def update_m1(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None, tolerance = 1e5):
+def update_m1(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''.
     Update the mass 1 value given to that calculated if the tolerance is not met.
 
@@ -448,37 +478,39 @@ def update_m1(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None,
     calculated. If there is not mass 1 value passed into the function,
     or the tolerance is exceeded, then the calculated mass 1 value
     becomes the value used and returned as the mass 1.
-    
+
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given, default = None
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses, default = None
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given, default = None
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses, default = None
 
-        Mtot = total mass of the system, units = same as the other
-               mass values given, default = None
+        total_mass_log10 (Mtot) = total mass of the system, log10
+               solar masses, default = None
 
-        q = mass ratio of the system, units = NA, default = None
+        mass_ratio (q) = mass ratio of the system, units = NA, default = None
 
-        Mc = chirp mass of the system, units = same as the other mass
-             values given, default = None
+        chirp_mass_log10 (Mc) = chirp mass of the system, log10
+             solar masses, default = None
 
-        mu = reduced mass of the system, units = same as the other
-             mass values given, default = None
+        reduced_mass_log10 (mu) = reduced mass of the system, log10
+             solar masses, default = None
 
-        tolarance = what the difference has to be less than or equal
+        tolerance = what the difference has to be less than or equal
                     to in order to not replace the given value with that
                     calculated, units = NA, default = 1e5
-    
+
     Outputs:
 
-        m1 = mass of first binary object, units = same as the units of
-             the masses passed to function
+        m1 = mass of first binary object, log10 solar masses
 
     '''
-    
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, q = total_mass_log10, mass_ratio
+    Mc, mu = chirp_mass_log10, reduced_mass_log10
+
     # Try to calculate m1 from whatever given mass values you have using the find_m1_m2 function
     try:
         m1_calced = find_m1_m2(m1, m2, Mtot, q, Mc, mu)[0]
@@ -500,7 +532,15 @@ def update_m1(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None,
 
 
 
-def update_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None, tolerance = 1e5):
+def update_m2(
+    primary_mass_log10: float | None = None,
+    secondary_mass_log10: float | None = None,
+    total_mass_log10: float | None = None,
+    mass_ratio: float | None = None,
+    chirp_mass_log10: float | None = None,
+    reduced_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''.
 
     Update the mass 2 value given to that calculated if the tolerance
@@ -512,34 +552,36 @@ def update_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None,
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given, default = None
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses, default = None
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given, default = None
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses, default = None
 
-        Mtot = total mass of the system, units = same as the other
-               mass values given, default = None
+        total_mass_log10 (Mtot) = total mass of the system, log10
+               solar masses, default = None
 
-        q = mass ratio of the system, units = NA, default = None
+        mass_ratio (q) = mass ratio of the system, units = NA, default = None
 
-        Mc = chirp mass of the system, units = same as the other mass
-             values given, default = None
+        chirp_mass_log10 (Mc) = chirp mass of the system, log10
+             solar masses, default = None
 
-        mu = reduced mass of the system, units = same as the other
-             mass values given, default = None
+        reduced_mass_log10 (mu) = reduced mass of the system, log10
+             solar masses, default = None
 
-        tolarance = what the difference has to be less than or equal
+        tolerance = what the difference has to be less than or equal
                     to in order to not replace the given value with that
                     calculated, units = NA, default = 1e5
-    
+
     Outputs:
 
-        m2 = mass of first binary object, units = same as the units of
-             the masses passed to function
+        m2 = mass of first binary object, log10 solar masses
 
     '''
-    
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, q = total_mass_log10, mass_ratio
+    Mc, mu = chirp_mass_log10, reduced_mass_log10
+
     # Try to calculate m2 from whatever given mass values you have
     # using the find_m1_m2 function
     try:
@@ -565,7 +607,12 @@ def update_m2(m1 = None, m2 = None, Mtot = None, q = None, Mc = None, mu = None,
 
 
 ###############
-def update_Mc(m1, m2, Mc = None, tolerance = 1e5):
+def update_Mc(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    chirp_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''.
 
     Update the chirp mass value given to that calculated if the
@@ -575,29 +622,29 @@ def update_Mc(m1, m2, Mc = None, tolerance = 1e5):
     m2. If there is not chirp mass value passed into the function, or
     the tolerance is exceeded, then the calculated chirp mass value
     becomes the value used and returned as the chirp mass.
-    
+
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
 
-        Mc = chirp mass of the system, units = same as the other mass
-             values given, default = None
+        chirp_mass_log10 (Mc) = chirp mass of the system, log10
+             solar masses, default = None
 
         tolerance = what the difference has to be less than or equal
                     to in order to not replace the given value with that
                     calculated, units = NA, default = 1e5
-    
+
     Outputs:
 
-        Mc = chirp mass of the system, units = same as the units of
-             the masses passed to function
+        Mc = chirp mass of the system, log10 solar masses
 
     '''
-    
+    m1, m2, Mc = primary_mass_log10, secondary_mass_log10, chirp_mass_log10
+
     # Calculate the chirp mass from the given m1 and m2
     Mc_calced = Mc_calc(m1, m2)
 
@@ -616,7 +663,12 @@ def update_Mc(m1, m2, Mc = None, tolerance = 1e5):
 
 
 
-def update_Mtot(m1, m2, Mtot = None, tolerance = 1e5):
+def update_Mtot(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    total_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''.
 
     Update the total mass value given to that calculated if the
@@ -627,29 +679,29 @@ def update_Mtot(m1, m2, Mtot = None, tolerance = 1e5):
     the tolerance is exceeded, then the calculated total mass value
     becomes the value used and returned as the total mass.
 
-    
+
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
 
-        Mtot = total mass of the system, units = same as the other
-               mass values given, default = None
+        total_mass_log10 (Mtot) = total mass of the system, log10
+               solar masses, default = None
 
-        tolarance = what the difference has to be less than or equal
+        tolerance = what the difference has to be less than or equal
                     to in order to not replace the given value with that
                     calculated, units = NA, default = 1e5
-    
+
     Outputs:
 
-        Mtot = total mass of the system, units = same as the units of
-               the masses passed to function
+        Mtot = total mass of the system, log10 solar masses
 
     '''
-    
+    m1, m2, Mtot = primary_mass_log10, secondary_mass_log10, total_mass_log10
+
     # Calculate the total mass from the given m1 and m2
     Mtot_calced = Mtot_calc(m1, m2)
 
@@ -668,9 +720,14 @@ def update_Mtot(m1, m2, Mtot = None, tolerance = 1e5):
 
 
 
-def update_mu(m1, m2, mu = None, tolerance = 1e5):
+def update_mu(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    reduced_mass_log10: float | None = None,
+    tolerance: float = 1e5,
+) -> float:
     '''.
-    
+
     Update the reduced mass value given to that calculated if the
     tolerance is not met.  This function will check to see if the
     reduced mass value passed to the function is the same or within
@@ -682,26 +739,26 @@ def update_mu(m1, m2, mu = None, tolerance = 1e5):
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
 
-        mu = reduced mass of the system, units = same as the other
-             mass values given, default = None
+        reduced_mass_log10 (mu) = reduced mass of the system, log10
+             solar masses, default = None
 
-        tolarance = what the difference has to be less than or equal
+        tolerance = what the difference has to be less than or equal
                     to in order to not replace the given value with that
                     calculated, units = NA, default = 1e5
-    
+
     Outputs:
 
-        mu = reduced mass of the system, units = same as the units of
-             the masses passed to function
+        mu = reduced mass of the system, log10 solar masses
 
     '''
-    
+    m1, m2, mu = primary_mass_log10, secondary_mass_log10, reduced_mass_log10
+
     # Calculate the reduced mass from the given m1 and m2
     mu_calced = mu_calc(m1, m2)
 
@@ -722,9 +779,14 @@ def update_mu(m1, m2, mu = None, tolerance = 1e5):
 
 
 
-def update_q(m1, m2, q = None, tolerance = 0.01):
+def update_q(
+    primary_mass_log10: float,
+    secondary_mass_log10: float,
+    mass_ratio: float | None = None,
+    tolerance: float = 0.01,
+) -> float:
     '''.
-    
+
     Update the mass ratio value given to that calculated if the
     tolerance is not met.  This function will check to see if the mass
     ratio value passed to the function is the same or within some
@@ -735,24 +797,25 @@ def update_q(m1, m2, q = None, tolerance = 0.01):
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses
 
-        q = mass ratio of the system, units = NA, default = None
+        mass_ratio (q) = mass ratio of the system, units = NA, default = None
 
         tolerance = what the difference has to be less than or equal
                     to in order to not replace the given value with that
                     calculated, units = NA, default = 0.01
-    
+
     Outputs:
 
         q = mass ratio of the system, units = NA, default = None
 
     '''
-    
+    m1, m2, q = primary_mass_log10, secondary_mass_log10, mass_ratio
+
     # Calculate the mass ratio from the given m1 and m2
     q_calced = q_calc(m1, m2)
 
@@ -772,7 +835,14 @@ def update_q(m1, m2, q = None, tolerance = 0.01):
 
 
 
-def update_masses(m1, m2, Mtot, Mc, mu, q):
+def update_masses(
+    primary_mass_log10: float | None,
+    secondary_mass_log10: float | None,
+    total_mass_log10: float | None,
+    chirp_mass_log10: float | None,
+    reduced_mass_log10: float | None,
+    mass_ratio: float | None,
+) -> tuple[list, list]:
     '''.
 
     Update all six of the mass values used to fully describe a binary
@@ -790,44 +860,41 @@ def update_masses(m1, m2, Mtot, Mc, mu, q):
 
     Inputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given, default = None
+        primary_mass_log10 (m1) = mass of first binary object, log10
+             solar masses, default = None
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given, default = None
+        secondary_mass_log10 (m2) = mass of second binary object,
+             log10 solar masses, default = None
 
-        Mtot = total mass of the system, units = same as the other
-               mass values given, default = None
+        total_mass_log10 (Mtot) = total mass of the system, log10
+               solar masses, default = None
 
-        q = mass ratio of the system, units = NA, default = None
+        mass_ratio (q) = mass ratio of the system, units = NA, default = None
 
-        Mc = chirp mass of the system, units = same as the other mass
-             values given, default = None
+        chirp_mass_log10 (Mc) = chirp mass of the system, log10
+             solar masses, default = None
 
-        mu = reduced mass of the system, units = same as the other
-             mass values given, default = None
-    
+        reduced_mass_log10 (mu) = reduced mass of the system, log10
+             solar masses, default = None
+
     Outputs:
 
-        m1 = mass of first binary object, units = same as the other
-             mass value given
+        m1 = mass of first binary object, log10 solar masses
 
-        m2 = mass of second binary object, units = same as the other
-             mass value given
+        m2 = mass of second binary object, log10 solar masses
 
-        Mtot = total mass of the system, units = same as the other
-               mass values given
+        Mtot = total mass of the system, log10 solar masses
 
         q = mass ratio of the system, units = NA
 
-        Mc = chirp mass of the system, units = same as the other mass
-             values given
+        Mc = chirp mass of the system, log10 solar masses
 
-        mu = reduced mass of the system, units = same as the other
-             mass values given
+        mu = reduced mass of the system, log10 solar masses
 
     '''
-   
+    m1, m2 = primary_mass_log10, secondary_mass_log10
+    Mtot, Mc, mu, q = total_mass_log10, chirp_mass_log10, reduced_mass_log10, mass_ratio
+
     # Update m1.
     m1_updated = update_m1(m1, m2, Mtot, q, Mc, mu)
 
@@ -884,7 +951,11 @@ def update_masses(m1, m2, Mtot, Mc, mu, q):
 #  STRAIN CALCULATIONS
 ###########################
 
-def strain_calc(Mc,Dl,f_grav):
+def strain_calc(
+    chirp_mass_log10: float,
+    luminosity_distance_mpc: float,
+    gw_frequency_hz: float,
+) -> float:
     '''.
 
     Calculate strain amplitude using the NANOGrav "standard" strain
@@ -893,25 +964,26 @@ def strain_calc(Mc,Dl,f_grav):
     use of units.
 
     Inputs:
-        Mc = chirp mass, units = log10(M_solar)
-        Dl = luminosity distance, units = Mpc
-        f_grav = gravitational wave frequency, units = s^-1(Hz)
+        chirp_mass_log10 (Mc) = chirp mass, units = log10(M_solar)
+        luminosity_distance_mpc (Dl) = luminosity distance, units = Mpc
+        gw_frequency_hz (f_grav) = gravitational wave frequency, units = s^-1(Hz)
 
     Outputs:
         h = GW characteristic strain, units = NA
 
     '''
+    Mc, Dl, f_grav = chirp_mass_log10, luminosity_distance_mpc, gw_frequency_hz
 
     # Define constants used in strain equation.
     c = 9.7146e-15 #speed of light in units of Mpc s^-1
 
     # Convert mass
     Mc = 10**Mc
-    
+
     # Check that the number of arugments given to the function is
     # correct and they are all some form of a number.
     if isinstance(Mc, (int, float)) and isinstance(Dl, (int, float)) and isinstance(f_grav, (int, float)):
-        # Calculate the strain for the values given and return it. 
+        # Calculate the strain for the values given and return it.
         # equation from https://iopscience.iop.org/article/10.3847/1538-4357/ababa1/pdf, and http://www.physics.usu.edu/Wheeler/GenRel2013/Notes/GravitationalWaves.pdf
         h = 2*(((np.pi*f_grav)**(2/3))*((G*Mc)**(5/3)))/((c**4)*(Dl))
         return h
@@ -920,21 +992,26 @@ def strain_calc(Mc,Dl,f_grav):
         raise RuntimeError("Arguments given are incorrect. 3 numerical values needed (Mc, Dl, f_grav)")
 
 
-def tgw_calc(a,mtot,mu):
+def tgw_calc(
+    semimajor_axis_pc: float,
+    total_mass_log10: float,
+    reduced_mass_log10: float,
+) -> float:
     '''.
 
     Calculate time to coalescence based on purely GW radiation.
     Assumed e = 0, general relativity.
 
     Inputs:
-        a = semi-major axis in parsecs.
-        mtot = log10( total mass in Msun units )
-        mu = log10( reduced mass in Msun units )
+        semimajor_axis_pc (a) = semi-major axis in parsecs.
+        total_mass_log10 (mtot) = log10( total mass in Msun units )
+        reduced_mass_log10 (mu) = log10( reduced mass in Msun units )
 
     Outputs:
         t_gw = time to coalescence in years
 
     '''
+    a, mtot, mu = semimajor_axis_pc, total_mass_log10, reduced_mass_log10
 
     # Define constants used in strain equation.
     c = 9.7146e-15 #speed of light in units of Mpc s^-1
@@ -945,7 +1022,7 @@ def tgw_calc(a,mtot,mu):
     # Expand log mass values
     mtot = 10**mtot
     mu   = 10**mu
-    
+
     # Check N args and all numerical
     if isinstance(a, (int, float)) and isinstance(mtot, (int, float)) and isinstance(mu, (int, float)):
 
@@ -962,16 +1039,16 @@ def tgw_calc(a,mtot,mu):
 ###########################
 #  KEPLER'S LAWS
 ###########################
-def kepler_semimajor(period_years,mtot):
+def kepler_semimajor(orbital_period_years: float, total_mass_log10: float) -> float:
     """
     Calculate binary semi-major axis from Kepler's third law.
 
     Parameters
     ----------
-    period_years : float
+    orbital_period_years : float
         Orbital period in years.
 
-    log10_total_mass_msun : float
+    total_mass_log10 : float
         log10(total binary mass in solar masses).
 
     Returns
@@ -979,13 +1056,12 @@ def kepler_semimajor(period_years,mtot):
     float
         Semi-major axis in parsecs.
     """
+    period_years, mtot = orbital_period_years, total_mass_log10
 
     # Convert inputs
     period_seconds = period_years * s_per_year
     mtot = 10.0**mtot
 
-    print(f"found {period_seconds} and {mtot}")
-    
     # Kepler's third law:
     # a^3 = G M P^2 / 4 pi^2
     a = (G * mtot * period_seconds**2 / (4.0 * math.pi**2)) ** (1.0 / 3.0)
@@ -995,16 +1071,16 @@ def kepler_semimajor(period_years,mtot):
 
     return a_pc
 
-def kepler_period(a_pc, mtot):
+def kepler_period(semimajor_axis_pc: float, total_mass_log10: float) -> float:
     """
     Calculate binary orbital period from Kepler's third law.
 
     Parameters
     ----------
-    a_pc : float
+    semimajor_axis_pc : float
         Binary semi-major axis in parsecs.
 
-    mtot : float
+    total_mass_log10 : float
         log10(total binary mass in solar masses).
 
     Returns
@@ -1012,6 +1088,7 @@ def kepler_period(a_pc, mtot):
     float
         Orbital period in years.
     """
+    a_pc, mtot = semimajor_axis_pc, total_mass_log10
 
     # Convert inputs
     # a is converted from pc to Mpc because G is assumed to be in
@@ -1033,7 +1110,11 @@ def kepler_period(a_pc, mtot):
 #  FREQUENCY CONVERSION
 ###########################
 
-def freq_calc(T = None, f_orb = None, f_grav = None):
+def freq_calc(
+    orbital_period_years: float | None = None,
+    orbital_frequency_hz: float | None = None,
+    gw_frequency_hz: float | None = None,
+) -> list:
     """.
 
     Read any of the Orbital Period in the Source Frame (in years), the
@@ -1044,20 +1125,21 @@ def freq_calc(T = None, f_orb = None, f_grav = None):
     calculated estimates, and reserve the old inputs to be checked
     later.
 
-    Args: 
-    T = Orbital Period in Years
-    f_orb = Orbital frequency in Hertz
-    f_grav = Dominant gravitational wave frequency in Hertz
+    Args:
+    orbital_period_years (T) = Orbital Period in Years
+    orbital_frequency_hz (f_orb) = Orbital frequency in Hertz
+    gw_frequency_hz (f_grav) = Dominant gravitational wave frequency in Hertz
     These will also be the outputs
 
     """
-    
+    T, f_orb, f_grav = orbital_period_years, orbital_frequency_hz, gw_frequency_hz
+
     if not isinstance(T, (int, float, type(None))) and not isinstance(f_orb, (int, float, type(None))) and not isinstance(f_grav, (int, float, type(None))):
         raise TypeError("Arguments must be numerical or empty.")
-        
+
     if not isnull(T) and not isnull(f_orb) and f_grav != None:
         return [f_orb, T, f_grav]
-    
+
     if not isnull(T):
         #change T into seconds
         T_sec = T*s_per_year
@@ -1081,17 +1163,22 @@ def freq_calc(T = None, f_orb = None, f_grav = None):
         #statement
     else:
         raise RuntimeError("Please make sure to include values for at least one of the arguments.")
-    
+
     # Array of outputs (built with priority for T)
-   
+
     # From here, frequency values can be reinserted into the BOBcat
     # database.
     return [f_orb, T, f_grav]
 
 
 
-def update_Tforb(T = None, f_orb = None, f_grav = None, tolerance = 1e-5):
-    
+def update_Tforb(
+    orbital_period_years: float | None = None,
+    orbital_frequency_hz: float | None = None,
+    gw_frequency_hz: float | None = None,
+    tolerance: float = 1e-5,
+) -> tuple[float, float]:
+
     """.
 
     Checks self-consistency of values T, f_orb, and f_grav provided to
@@ -1101,6 +1188,7 @@ def update_Tforb(T = None, f_orb = None, f_grav = None, tolerance = 1e-5):
     DOES AND WHAT T, f_orb and f_grav ARE!!!
 
     """
+    T, f_orb, f_grav = orbital_period_years, orbital_frequency_hz, gw_frequency_hz
 
     T_calced, f_orb_calced = freq_calc(T, f_orb, f_grav)
 
@@ -1124,13 +1212,18 @@ def update_Tforb(T = None, f_orb = None, f_grav = None, tolerance = 1e-5):
 
 
 
-    
+
 
 ###########################
 #  COSMOLOGY FUNCTIONS
 ###########################
 
-def cosmo_calc(z,H0=70,WM=0.3,WV=0.000085): #Inputs are: z, H0, WM, WV
+def cosmo_calc(
+    redshift: float,
+    hubble_constant: float = 70,
+    omega_matter: float = 0.3,
+    omega_vacuum: float = 0.000085,
+) -> tuple[float, float, float]:
     """.
 
     This is the BOBcat cosmological distance calculator. It was built
@@ -1139,22 +1232,25 @@ def cosmo_calc(z,H0=70,WM=0.3,WV=0.000085): #Inputs are: z, H0, WM, WV
     (www.astro.ucla.edu/~wright) Cosmology calculator python version
     (www.astro.ucla.edu/~wright/CC.python) ala James Schombert
     (abyss.uoregon.edu/~js/)
-    
+
     This version has been simplified to only include inputs necessary
     for the desired output array.
 
-    Required Input values = redshift
-    Additional Input values = Ho, Omega_m, Omega_vac
-    
+    Required Input values = redshift (z)
+    Additional Input values = hubble_constant (H0), omega_matter (WM),
+                               omega_vacuum (WV)
+
     Output values = redshift, comoving radial distance (in Mpc),
     luminosity distance (in Mpc), and the angular diameter distance
     scale (in kpc/")
-    
+
     By default, this calculator assumes a flat universe in line with
     the benchmark model. Other universes can be built via custom
     values of WM and WV.
 
     """
+    z, H0, WM, WV = redshift, hubble_constant, omega_matter, omega_vacuum
+
     #We first want to assume the benchmark model when not provided
     #cosmological parameters
 #    if b==None and c==None:
@@ -1170,14 +1266,14 @@ def cosmo_calc(z,H0=70,WM=0.3,WV=0.000085): #Inputs are: z, H0, WM, WV
 #    H0 = a
 #    WM = b                          # Omega(matter)
 #    WV = c                          # Omega(vacuum) or lambda
-        
+
     #Next, initialize constants
-    
+
     WR = 0.        # Omega(radiation)
     WK = 0.        # Omega curvaturve = 1-Omega(total)
     c = 299792.458 # velocity of light in km/sec
     DCMR = 0.0     # comoving radial distance in units of c/H0
-    DCMR_Mpc = 0.0 
+    DCMR_Mpc = 0.0
     DA = 0.0       # angular size distance
     DA_Mpc = 0.0
     kpc_DA = 0.0
@@ -1185,7 +1281,7 @@ def cosmo_calc(z,H0=70,WM=0.3,WV=0.000085): #Inputs are: z, H0, WM, WV
     DL_Mpc = 0.0
     a = 1.0        # 1/(1+z), the scale factor of the Universe
     az = 0.5       # 1/(1+z(object))
-    
+
     h = H0/100.
     WR = 4.165E-5/(h*h)   # includes 3 massless neutrino species, T0 = 2.72528
     WK = 1-WM-WR-WV
@@ -1202,18 +1298,18 @@ def cosmo_calc(z,H0=70,WM=0.3,WV=0.000085): #Inputs are: z, H0, WM, WV
 
     DCMR = (1.-az)*DCMR/n
     DCMR_Mpc = (c/H0)*DCMR
-    
+
     #Calculate the tangential comoving distance
     ratio = 1.00
     x = np.sqrt(abs(WK))*DCMR
     if x > 0.1:
         if WK > 0:
-            ratio =  0.5*(np.exp(x)-np.exp(-x))/x 
+            ratio =  0.5*(np.exp(x)-np.exp(-x))/x
         else:
             ratio = np.sin(x)/x
     else:
         y = x*x
-        if WK < 0: 
+        if WK < 0:
             y = -y
             ratio = 1. + y/6. + y*y/120.
     DCMT = ratio*DCMR
@@ -1231,7 +1327,6 @@ def cosmo_calc(z,H0=70,WM=0.3,WV=0.000085): #Inputs are: z, H0, WM, WV
     # Returns an array of redshift, comoving radial distance (in Mpc),
     # luminosity distance (in Mpc), and the angular diameter distance
     # scale (in kpc/") From this, we can reinsert distance values into
-    # the BOBcat database for use in calculating 
+    # the BOBcat database for use in calculating
     return (DL_Mpc, DCMR_Mpc, kpc_DA)
 
-    

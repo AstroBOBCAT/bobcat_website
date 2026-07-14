@@ -38,46 +38,46 @@ def test_q_calc_symmetric_regardless_of_argument_order():
 
 # ── find_m1_m2 ───────────────────────────────────────────────────────────────
 
-def test_find_m1_m2_from_m1_and_m2_returns_linear_masses():
-    # Given both m1 and m2 (log10), they're converted to linear and
-    # returned as-is (larger mass first).
-    m1, m2 = calc.find_m1_m2(m1=1.0, m2=0.0)
-    assert m1 == pytest.approx(10.0)
-    assert m2 == pytest.approx(1.0)
+def test_find_m1_m2_from_m1_and_m2_returns_log_masses():
+    # Given both m1 and m2 (log10), they're returned in log10
+    # (larger mass first).
+    m1, m2 = calc.find_m1_m2(primary_mass_log10=1.0, secondary_mass_log10=0.0)
+    assert m1 == pytest.approx(1.0)
+    assert m2 == pytest.approx(0.0, abs=1e-12)
 
 
 def test_find_m1_m2_from_mtot_and_q():
-    m1, m2 = calc.find_m1_m2(Mtot=1.041392685158225, q=0.1)
-    assert m1 == pytest.approx(10.0, rel=1e-6)
-    assert m2 == pytest.approx(1.0, rel=1e-6)
+    m1, m2 = calc.find_m1_m2(total_mass_log10=1.041392685158225, mass_ratio=0.1)
+    assert m1 == pytest.approx(1.0, rel=1e-6)
+    assert m2 == pytest.approx(0.0, abs=1e-6)
 
 
 def test_find_m1_m2_from_mc_and_mu():
-    m1, m2 = calc.find_m1_m2(Mc=0.39172146296835497, mu=-0.04139268515822506)
-    assert m1 == pytest.approx(10.0, rel=1e-6)
-    assert m2 == pytest.approx(1.0, rel=1e-6)
+    m1, m2 = calc.find_m1_m2(chirp_mass_log10=0.39172146296835497, reduced_mass_log10=-0.04139268515822506)
+    assert m1 == pytest.approx(1.0, rel=1e-6)
+    assert m2 == pytest.approx(0.0, abs=1e-6)
 
 
 def test_find_m1_m2_insufficient_params_raises_runtimeerror():
     with pytest.raises(RuntimeError) as excinfo:
-        calc.find_m1_m2(m1=1.0)
+        calc.find_m1_m2(primary_mass_log10=1.0)
     assert "at least two mass values" in str(excinfo.value)
 
 
 def test_find_m1_m2_mc_too_large_for_mtot_raises_runtimeerror():
     with pytest.raises(RuntimeError):
-        calc.find_m1_m2(Mc=2.0, Mtot=1.0)
+        calc.find_m1_m2(chirp_mass_log10=2.0, total_mass_log10=1.0)
 
 
 # ── update_Mc / update_Mtot / update_mu / update_q ──────────────────────────
 
 def test_update_mc_within_tolerance_keeps_given():
     given = 0.39172146296835497
-    assert calc.update_Mc(1.0, 0.0, Mc=given) == pytest.approx(given)
+    assert calc.update_Mc(1.0, 0.0, chirp_mass_log10=given) == pytest.approx(given)
 
 
 def test_update_mc_none_given_uses_calculated():
-    assert calc.update_Mc(1.0, 0.0, Mc=None) == pytest.approx(
+    assert calc.update_Mc(1.0, 0.0, chirp_mass_log10=None) == pytest.approx(
         calc.Mc_calc(1.0, 0.0)
     )
 
@@ -85,29 +85,32 @@ def test_update_mc_none_given_uses_calculated():
 def test_update_mc_outside_tolerance_recomputes():
     # default tolerance is 1e5 (log10 solar masses), so a wildly-off given
     # value gets replaced by the calculated one.
-    result = calc.update_Mc(1.0, 0.0, Mc=1e6)
+    result = calc.update_Mc(1.0, 0.0, chirp_mass_log10=1e6)
     assert result == pytest.approx(calc.Mc_calc(1.0, 0.0))
 
 
 def test_update_q_within_tolerance_keeps_given():
-    assert calc.update_q(1.0, 0.0, q=0.1) == pytest.approx(0.1)
+    assert calc.update_q(1.0, 0.0, mass_ratio=0.1) == pytest.approx(0.1)
 
 
 def test_update_q_outside_tolerance_recomputes():
     # default tolerance is 0.01; 0.5 is far from the true q of 0.1
-    assert calc.update_q(1.0, 0.0, q=0.5) == pytest.approx(0.1)
+    assert calc.update_q(1.0, 0.0, mass_ratio=0.5) == pytest.approx(0.1)
 
 
 # ── strain_calc ──────────────────────────────────────────────────────────────
 
 def test_strain_calc_known_value():
-    strain = calc.strain_calc(7.9e8, 85, 60.4e-9)
+    # Mc is now given as log10(Msun): log10(7.9e8) = 8.8976270912904414
+    strain = calc.strain_calc(8.8976270912904414, 85, 60.4e-9)
     assert strain == pytest.approx(7.269388639002558e-15)
 
 
 def test_strain_calc_bad_params_raises_runtimeerror():
+    # Mc must be numeric (10**Mc happens before the type check),
+    # so probe the check with bad Dl/f_grav instead.
     with pytest.raises(RuntimeError) as excinfo:
-        calc.strain_calc("a", "b", 5)
+        calc.strain_calc(8.0, "b", 5)
     assert str(excinfo.value) == (
         "Arguments given are incorrect. 3 numerical values needed (Mc, Dl, f_grav)"
     )
@@ -116,28 +119,31 @@ def test_strain_calc_bad_params_raises_runtimeerror():
 # ── freq_calc ────────────────────────────────────────────────────────────────
 
 def test_freq_calc_period_only():
-    f_orb, T, f_grav = calc.freq_calc(T=1.0)
+    # f_orb = 1/T (no 2*pi factor), IAU year = 31557600 s
+    f_orb, T, f_grav = calc.freq_calc(orbital_period_years=1.0)
     assert T == pytest.approx(1.0)
-    assert f_orb == pytest.approx(1.9923849908611068e-07)
+    assert f_orb == pytest.approx(1.0 / 31557600)
     assert f_grav == pytest.approx(2 * f_orb)
 
 
 def test_freq_calc_forb_only():
-    f_orb, T, f_grav = calc.freq_calc(f_orb=1e-8)
+    f_orb, T, f_grav = calc.freq_calc(orbital_frequency_hz=1e-8)
     assert f_orb == pytest.approx(1e-8)
-    assert T == pytest.approx(19.923849908611064)
+    assert T == pytest.approx(1e8 / 31557600)
     assert f_grav == pytest.approx(2e-8)
 
 
 def test_freq_calc_fgrav_only():
-    f_orb, T, f_grav = calc.freq_calc(f_grav=2e-8)
+    f_orb, T, f_grav = calc.freq_calc(gw_frequency_hz=2e-8)
     assert f_grav == pytest.approx(2e-8)
     assert f_orb == pytest.approx(1e-8)
-    assert T == pytest.approx(19.923849908611064)
+    assert T == pytest.approx(1e8 / 31557600)
 
 
 def test_freq_calc_all_given_returned_unchanged():
-    f_orb, T, f_grav = calc.freq_calc(T=1.0, f_orb=2e-7, f_grav=3e-7)
+    f_orb, T, f_grav = calc.freq_calc(
+        orbital_period_years=1.0, orbital_frequency_hz=2e-7, gw_frequency_hz=3e-7
+    )
     assert (f_orb, T, f_grav) == (2e-7, 1.0, 3e-7)
 
 
@@ -148,7 +154,9 @@ def test_freq_calc_nothing_given_raises_runtimeerror():
 
 def test_freq_calc_all_wrong_type_raises_typeerror():
     with pytest.raises(TypeError):
-        calc.freq_calc(T="a", f_orb="b", f_grav="c")
+        calc.freq_calc(
+            orbital_period_years="a", orbital_frequency_hz="b", gw_frequency_hz="c"
+        )
 
 
 # ── cosmo_calc ───────────────────────────────────────────────────────────────
