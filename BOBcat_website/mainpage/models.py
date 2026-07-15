@@ -119,16 +119,16 @@ class BinaryModel(models.Model):
     inclination = models.FloatField(null=True, blank=True, help_text="Orbital inclination in degrees")
     semimajor_axis = models.FloatField(null=True, blank=True, help_text="Semimajor axis in parsecs")
     separation = models.FloatField(null=True, blank=True, help_text="Projected separation in parsecs")
-    rm_orb_period = models.FloatField(
+    orb_period = models.FloatField(
         null=True, blank=True,
         help_text="Earth-frame orbital period in years",
     )
-    rm_orb_period_epoch = models.FloatField(
+    orb_period_epoch = models.FloatField(
         null=True, blank=True,
         help_text="Reference epoch (MJD) for the orbital period",
     )
     # Calculated fields
-    gw_strain = models.FloatField(null=True, blank=True, help_text="GW strain amplitude h at Earth (circular orbit)")
+    gw_strain = models.FloatField(null=True, blank=True, help_text="log of GW strain amplitude h at Earth (circular orbit)")
     gw_inspiral_timescale = models.FloatField(null=True, blank=True, help_text="Time to coalescence in seconds (GR, circular orbit)")
 
     summary = models.CharField(max_length=750, null=True, blank=True, help_text="Brief description of the binary model")
