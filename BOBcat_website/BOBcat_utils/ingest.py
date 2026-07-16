@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -27,7 +28,12 @@ from mainpage.models import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SHEET_KEY = "1DTFQ3KMg1qkonvCv6veT0TqLmC4hbdjUQ09_CQfVMoI"
+# BOBCAT_SHEET_KEY is set in .db_info (the project's env file, loaded via
+# docker-compose's env_file:) alongside the other deployment settings; the
+# literal string here is only a fallback for environments that don't set it.
+DEFAULT_SHEET_KEY = os.environ.get(
+    "BOBCAT_SHEET_KEY", "1DTFQ3KMg1qkonvCv6veT0TqLmC4hbdjUQ09_CQfVMoI"
+)
 
 DAYS_PER_YEAR = 365.25
 
