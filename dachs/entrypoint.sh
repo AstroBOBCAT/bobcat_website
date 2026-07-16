@@ -20,8 +20,35 @@ SUPERUSER_DSN="host=${POSTGRES_HOST:-db} port=${POSTGRES_PORT:-5432} dbname=${PO
 
 echo "Initialising DACHS schemas in PostgreSQL ..."
 # gavo init -d DSN creates _gavo/tap_schema schemas and the gavoadmin/gavo/
-# untrusted roles. It also writes profile files. || true so restarts are safe.
-gavo init -d "$SUPERUSER_DSN" || true
+# untrusted roles. It also writes profile files.
+#
+# gavo init also runs pg_sphere's bootstrap SQL (CREATE OPERATOR / CREATE
+# FUNCTION for the smoc/scircle/spoly spatial types) to set up spatial-query
+# support, and that SQL has no "IF NOT EXISTS" guards. So re-running gavo
+# init against an already-initialized database spams harmless-but-noisy
+# "already exists" / "must be owner of function ..." errors -- both in this
+# container's own log and, since the errors happen server-side, in
+# PostgreSQL's own server log.
+#
+# Guard against that with a marker file. Note /var/gavo is NOT a mounted
+# volume (see docker-compose.yml), so this marker only survives plain
+# container restarts (e.g. `restart: always` after a crash or host reboot)
+# -- not a full image rebuild / container recreation, where /var/gavo is
+# wiped and gavo init correctly runs again. That's the behavior we want: a
+# freshly built/created container should still run init at least once,
+# while a restart of the same container shouldn't redundantly re-run it
+# against a database that's already set up.
+DACHS_INIT_MARKER=/var/gavo/.dachs_initialized
+if [ ! -f "$DACHS_INIT_MARKER" ]; then
+    # || true so restarts are safe: even on a fresh container, gavo init
+    # can still hit the already-exists noise above harmlessly if the
+    # postgres_data volume was already initialized by an earlier container
+    # -- that shouldn't crash-loop this container.
+    gavo init -d "$SUPERUSER_DSN" || true
+    touch "$DACHS_INIT_MARKER"
+else
+    echo "  (skipping: already initialised in this container, per $DACHS_INIT_MARKER)"
+fi
 
 echo "Writing database profiles ..."
 # Override gavo init's profiles to reuse POSTGRES_USER (already a superuser
