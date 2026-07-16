@@ -119,11 +119,11 @@ class BinaryModel(models.Model):
     inclination = models.FloatField(null=True, blank=True, help_text="Orbital inclination in degrees")
     semimajor_axis = models.FloatField(null=True, blank=True, help_text="Semimajor axis in parsecs")
     separation = models.FloatField(null=True, blank=True, help_text="Projected separation in parsecs")
-    rm_orb_period = models.FloatField(
+    orb_period = models.FloatField(
         null=True, blank=True,
         help_text="Earth-frame orbital period in years",
     )
-    rm_orb_period_epoch = models.FloatField(
+    orb_period_epoch = models.FloatField(
         null=True, blank=True,
         help_text="Reference epoch (MJD) for the orbital period",
     )

@@ -42,8 +42,8 @@ PARAM_TO_FIELD = {
     "inclination": "inclination",
     "semi-major axis": "semimajor_axis",
     "separation": "separation",
-    "period epoch": "rm_orb_period_epoch",
-    "orbital period (earth frame)": "rm_orb_period",
+    "period epoch": "orb_period_epoch",
+    "orbital period (earth frame)": "orb_period",
     "Summary/notes on source": "summary",
     "Caveats": "caveats",
     "Extension project": "ext_proj",
@@ -365,7 +365,7 @@ def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -
                 warnings.append(f"{sheet_name}={fval} outside [{lo}, {hi}]")
                 continue
 
-        if db_field == "rm_orb_period":
+        if db_field == "orb_period":
             fval = fval / DAYS_PER_YEAR
 
         fields[db_field] = fval
@@ -412,21 +412,21 @@ def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -
                         notes.append(f"Failed to compute {name}: {e}")
 
         # Frequency / period filling
-        if f.get("rm_orb_period") is None and freq_hz_sheet is not None:
+        if f.get("orb_period") is None and freq_hz_sheet is not None:
             try:
                 _, T_yr, _ = calc.freq_calc(orbital_frequency_hz=freq_hz_sheet)
                 if T_yr is not None and not np.isnan(T_yr):
-                    f["rm_orb_period"] = T_yr
-                    notes.append(f"Filled rm_orb_period={T_yr:.6g} yr")
+                    f["orb_period"] = T_yr
+                    notes.append(f"Filled orb_period={T_yr:.6g} yr")
             except Exception as e:
                 notes.append(f"Frequency filling failed: {e}")
 
         # Kepler semi-major axis from period + total mass
         if (f.get("semimajor_axis") is None
-                and f.get("rm_orb_period") is not None
+                and f.get("orb_period") is not None
                 and f.get("mtot") is not None):
             try:
-                a_pc = calc.kepler_semimajor(f["rm_orb_period"], f["mtot"])
+                a_pc = calc.kepler_semimajor(f["orb_period"], f["mtot"])
                 f["semimajor_axis"] = a_pc
                 notes.append(f"Filled semimajor_axis={a_pc:.6g} pc (Kepler)")
             except Exception as e:
@@ -434,8 +434,8 @@ def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -
 
         # GW strain (needs chirp mass, luminosity distance, GW frequency)
         freq_hz = freq_hz_sheet
-        if freq_hz is None and f.get("rm_orb_period"):
-            freq_hz = 1.0 / (f["rm_orb_period"] * DAYS_PER_YEAR * 86400)
+        if freq_hz is None and f.get("orb_period"):
+            freq_hz = 1.0 / (f["orb_period"] * DAYS_PER_YEAR * 86400)
         if f.get("mc") is not None and lum_dist is not None and freq_hz is not None:
             try:
                 f["gw_strain"] = calc.strain_calc(f["mc"], lum_dist, 2 * freq_hz)
@@ -587,7 +587,7 @@ def parse_errors(indexed_df: pd.DataFrame) -> list[dict]:
         db_field = PARAM_TO_FIELD.get(param, param)
 
         # Convert period errors from days to years
-        if db_field == "rm_orb_period":
+        if db_field == "orb_period":
             error_lower /= DAYS_PER_YEAR
             error_upper /= DAYS_PER_YEAR
 
@@ -896,8 +896,8 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             stats["errors"] += len(error_dicts)
 
         # ── ObsPeriod ──
-        period_yr = fields.get("rm_orb_period")
-        epoch_mjd = fields.get("rm_orb_period_epoch")
+        period_yr = fields.get("orb_period")
+        epoch_mjd = fields.get("orb_period_epoch")
         if period_yr is not None and epoch_mjd is not None:
             obs_period, op_created = ObsPeriod.objects.get_or_create(
                 binary_model=binary_model,
@@ -906,7 +906,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             )
             if op_created:
                 period_err = next(
-                    (e for e in error_dicts if e["property_name"] == "rm_orb_period"),
+                    (e for e in error_dicts if e["property_name"] == "orb_period"),
                     None,
                 )
                 if period_err:

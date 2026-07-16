@@ -95,8 +95,8 @@ ALL_COLUMNS = [
     {"key": "inclination",         "label": "Inclination",         "default": False},
     {"key": "semimajor_axis",      "label": "Semimajor Axis",      "default": False},
     {"key": "separation",          "label": "Separation",          "default": False},
-    {"key": "rm_orb_period",       "label": "Orbital Period",      "default": False},
-    {"key": "rm_orb_period_epoch", "label": "Period Epoch",        "default": False},
+    {"key": "orb_period",       "label": "Orbital Period",      "default": False},
+    {"key": "orb_period_epoch", "label": "Period Epoch",        "default": False},
     {"key": "gw_strain",           "label": "GW Strain",           "default": True},
     {"key": "gw_inspiral_timescale", "label": "Inspiral Timescale", "default": False},
     {"key": "summary",             "label": "Summary",             "default": False},
@@ -106,7 +106,7 @@ ALL_COLUMNS = [
 
 CANDIDATE_FLOAT_FIELDS = ["jra", "jdec", "redshift"]
 MASS_FIELDS   = ["m1", "m2", "mtot", "mc", "mu", "q"]
-ORBIT_FIELDS  = ["eccentricity", "inclination", "semimajor_axis", "separation", "rm_orb_period", "rm_orb_period_epoch"]
+ORBIT_FIELDS  = ["eccentricity", "inclination", "semimajor_axis", "separation", "orb_period", "orb_period_epoch"]
 GW_FIELDS     = ["gw_strain", "gw_inspiral_timescale"]
 
 FLOAT_FIELDS = MASS_FIELDS + ORBIT_FIELDS + GW_FIELDS
@@ -131,8 +131,8 @@ FLOAT_FIELD_LABELS = {
     "inclination":           "Inclination",
     "semimajor_axis":        "Semimajor Axis",
     "separation":            "Separation",
-    "rm_orb_period":         "Orbital Period",
-    "rm_orb_period_epoch":   "Period Epoch",
+    "orb_period":         "Orbital Period",
+    "orb_period_epoch":   "Period Epoch",
     "gw_strain":             "GW Strain",
     "gw_inspiral_timescale": "Inspiral Timescale",
 }
@@ -405,8 +405,8 @@ def binary_model_search(request):
                 "inclination": model.inclination,
                 "semimajor_axis": model.semimajor_axis,
                 "separation": model.separation,
-                "rm_orb_period": model.rm_orb_period,
-                "rm_orb_period_epoch": model.rm_orb_period_epoch,
+                "orb_period": model.orb_period,
+                "orb_period_epoch": model.orb_period_epoch,
                 "gw_strain": model.gw_strain,
                 "gw_inspiral_timescale": model.gw_inspiral_timescale,
                 "summary": model.summary,

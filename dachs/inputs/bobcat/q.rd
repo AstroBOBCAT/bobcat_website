@@ -216,16 +216,17 @@
             description="Projected separation in parsecs"
             required="False"/>
 
-    <!-- Note: the DB columns are named rm_orb_period / rm_orb_period_epoch
-         (lowercase) after the 0002 migration renames them from RM_orb_period. -->
-    <column name="rm_orb_period"
+    <!-- Note: the DB columns were renamed from rm_orb_period /
+         rm_orb_period_epoch (the "rm" prefix had no documented meaning)
+         to orb_period / orb_period_epoch by the 0002 migration. -->
+    <column name="orb_period"
             type="double precision"
             ucd="time.period;src.orbital"
             unit="yr"
             description="Earth-frame orbital period in years"
             required="False"/>
 
-    <column name="rm_orb_period_epoch"
+    <column name="orb_period_epoch"
             type="double precision"
             ucd="time.epoch"
             unit="d"
