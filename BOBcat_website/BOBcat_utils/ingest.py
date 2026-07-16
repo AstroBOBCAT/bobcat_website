@@ -859,6 +859,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
         fields, val_warnings, derived_errors = validate_and_fill(indexed, lum_dist=lum_dist)
         all_warnings.extend(val_warnings)
 
+        
         # ── Create BinaryModel ──
         model_kwargs = {k: v for k, v in fields.items() if k in BINARY_MODEL_FIELDS}
         try:
