@@ -19,6 +19,13 @@ services:
     # No external port — nginx handles public access on port 80
     env_file:
       - .db_info
+    environment:
+      # Non-superuser role the gunicorn runtime uses for the default DB
+      # connection (see BOBcat_website/entrypoint.sh). Migrations still run as
+      # the superuser POSTGRES_USER. Override the password in production via
+      # .db_info — the default is a dev-only placeholder.
+      - APP_DB_USER=${APP_DB_USER:-bobcat_app}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:-bobcat_app_pw}
     depends_on:
       db:
         condition: service_healthy
