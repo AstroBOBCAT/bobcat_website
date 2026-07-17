@@ -51,8 +51,32 @@ else
 fi
 
 echo "Writing database profiles ..."
-# Override gavo init's profiles to reuse POSTGRES_USER (already a superuser
-# with full table access) rather than the gavoadmin role it created.
+# Two DSNs, split by privilege:
+#
+#   dsn        → POSTGRES_USER (a superuser). Used only by the `feed` profile,
+#                i.e. `gavo imp`/`gavo pub`, which legitimately create/manage
+#                tables and write DaCHS's dc.* metadata.
+#
+#   dsn_query  → a dedicated NON-superuser login role (DACHS_QUERY_USER). Used
+#                ONLY by the `untrustedquery` profile, which serves anonymous,
+#                publicly-reachable TAP queries via nginx /tap and /__system__.
+#                Serving those as a superuser (the previous behavior) meant
+#                public ADQL executed with full DB rights and silently defeated
+#                the SELECT-only schema grants this script sets up below. The
+#                role only needs to read; it inherits gavo init's fully-
+#                provisioned `untrusted` role (dc.* and tap_schema.* serve-time
+#                metadata access) plus the bobcat.* view grants made later in
+#                this script, and the bobcat.* views run with their superuser
+#                owner's rights so the underlying public.* tables stay
+#                reachable without granting on them.
+#
+#                `trustedquery` stays on the superuser dsn: it is not used for
+#                anonymous queries, but `gavo imp` uses it to read/write
+#                import-time admin metadata (e.g. dc.rdmeta) that the read-only
+#                role deliberately can't touch.
+DACHS_QUERY_USER="${DACHS_QUERY_USER:-dachs_query}"
+DACHS_QUERY_PASSWORD="${DACHS_QUERY_PASSWORD:-dachs_query_pw}"
+
 cat > /var/gavo/etc/dsn <<PROF
 host=${POSTGRES_HOST:-db}
 port=${POSTGRES_PORT:-5432}
@@ -61,9 +85,37 @@ user=${POSTGRES_USER:-bobcat_user}
 password=${POSTGRES_PASSWORD}
 PROF
 
-printf 'include dsn\n' > /var/gavo/etc/feed
-printf 'include dsn\n' > /var/gavo/etc/trustedquery
-printf 'include dsn\n' > /var/gavo/etc/untrustedquery
+cat > /var/gavo/etc/dsn_query <<PROF
+host=${POSTGRES_HOST:-db}
+port=${POSTGRES_PORT:-5432}
+database=${POSTGRES_DB:-bobcat}
+user=${DACHS_QUERY_USER}
+password=${DACHS_QUERY_PASSWORD}
+PROF
+
+printf 'include dsn\n'       > /var/gavo/etc/feed
+printf 'include dsn\n'       > /var/gavo/etc/trustedquery
+printf 'include dsn_query\n' > /var/gavo/etc/untrustedquery
+
+echo "Creating non-superuser DACHS query role '${DACHS_QUERY_USER}' ..."
+# Created as superuser (POSTGRES_USER). The CREATE runs in its own heredoc so
+# psql performs :'pw' variable interpolation (it does NOT do that for -c
+# strings, which are sent verbatim to the server); :'pw' safely quotes the
+# password as a string literal so punctuation can't break out into SQL. CREATE
+# harmlessly errors if the role already exists (plain restart), so it's run
+# with `|| true`; the following ALTER keeps the password/LOGIN current and the
+# GRANT is idempotent. Membership in gavo init's `untrusted` role (login roles
+# INHERIT by default) hands over exactly the read access an anonymous TAP
+# query needs. statement_timeout caps a wedged serving query.
+SUPERUSER_PSQL="host=${POSTGRES_HOST:-db} port=${POSTGRES_PORT:-5432} dbname=${POSTGRES_DB:-bobcat} user=${POSTGRES_USER:-bobcat_user} password=${POSTGRES_PASSWORD}"
+psql "$SUPERUSER_PSQL" -v pw="$DACHS_QUERY_PASSWORD" <<SQL 2>/dev/null || true
+CREATE ROLE "${DACHS_QUERY_USER}" WITH LOGIN PASSWORD :'pw';
+SQL
+psql "$SUPERUSER_PSQL" -v pw="$DACHS_QUERY_PASSWORD" <<SQL
+ALTER ROLE "${DACHS_QUERY_USER}" WITH LOGIN PASSWORD :'pw';
+ALTER ROLE "${DACHS_QUERY_USER}" SET statement_timeout = '300s';
+GRANT untrusted TO "${DACHS_QUERY_USER}";
+SQL
 
 echo "Granting DACHS service roles access to DaCHS's internal 'dc' schema ..."
 # gavo init (re)creates the dc schema on every run but only ever grants

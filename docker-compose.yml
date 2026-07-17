@@ -33,6 +33,12 @@ services:
       # generates correct self-referential URLs in capabilities/VOTable responses.
       # Defaults to http://localhost for local development.
       - DACHS_SERVER_URL=${DACHS_SERVER_URL:-http://localhost}
+      # Non-superuser role DaCHS uses to serve TAP queries (see
+      # dachs/entrypoint.sh). Override the password in production via .db_info
+      # — the default is a dev-only placeholder. The DB has no external port,
+      # so this role is only reachable from inside the compose network.
+      - DACHS_QUERY_USER=${DACHS_QUERY_USER:-dachs_query}
+      - DACHS_QUERY_PASSWORD=${DACHS_QUERY_PASSWORD:-dachs_query_pw}
     depends_on:
       db:
         condition: service_healthy

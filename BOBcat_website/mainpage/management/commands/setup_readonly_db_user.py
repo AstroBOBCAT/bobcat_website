@@ -73,6 +73,26 @@ class Command(BaseCommand):
                 f'REVOKE ALL ON SCHEMA information_schema FROM "{user}"'
             )
 
+            # Cap runtime of user-submitted queries. Without this, an
+            # unauthenticated caller can hang a gunicorn worker indefinitely
+            # with `SELECT pg_sleep(...)` or a heavy cartesian/generate_series
+            # query; a handful of those exhausts the worker pool and takes the
+            # whole site down. Role-level SET applies to every new connection
+            # made as this role (Django opens one per request).
+            cur.execute(f'ALTER ROLE "{user}" SET statement_timeout = %s', ["10s"])
+
+            # Explicitly deny the sleep builtins on top of the timeout. Their
+            # EXECUTE grant comes from PUBLIC, so it has to be revoked from
+            # PUBLIC (revoking from the role alone is a no-op). Superusers
+            # bypass grants, so the app's own privileged connection is
+            # unaffected.
+            for sleep_fn in (
+                "pg_sleep(double precision)",
+                "pg_sleep_for(interval)",
+                "pg_sleep_until(timestamp with time zone)",
+            ):
+                cur.execute(f"REVOKE EXECUTE ON FUNCTION pg_catalog.{sleep_fn} FROM PUBLIC")
+
         self.stdout.write(self.style.SUCCESS(
-            f"\nRead-only role '{user}' is ready."
+            f"\nRead-only role '{user}' is ready (statement_timeout=10s, pg_sleep revoked)."
         ))
