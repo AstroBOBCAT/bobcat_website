@@ -19,11 +19,8 @@ classifiers = [
 dependencies = [
 	     "gw_utils",
 	     "django",
-	     "decimal",
-	     "math",
 	     "numpy",
-	     "pandas",
-	     "typing"
+	     "pandas"
 ]
 
 [project.urls]
@@ -34,6 +31,9 @@ dependencies = [
 DJANGO_SETTINGS_MODULE = "BOBcat_website.settings"
 pythonpath = ["BOBcat_website"]
 testpaths = ["tests"]
+# network tests need the live stack / external services; a bare `pytest`
+# should not run them. `pytest -m network` still overrides this default.
+addopts = "-m 'not network'"
 markers = [
     "network: hits a live external service (NED/SIMBAD/astropy name resolver), opt-in only",
     "django_db: requires a real Postgres test database",

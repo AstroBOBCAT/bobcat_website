@@ -36,6 +36,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Only healthy once gavo serve actually answers TAP requests — the
+    # entrypoint's gavo init/imp sequence takes a while on first start,
+    # hence the long start_period.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8080/tap/availability"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
     # No external port — nginx routes /tap/* to dachs:8080
 
   nginx:
@@ -46,8 +55,10 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - backend
-      - dachs
+      backend:
+        condition: service_started
+      dachs:
+        condition: service_healthy
 
   ingest:
     build: ./BOBcat_website/
