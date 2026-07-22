@@ -6,3 +6,4 @@ BOBcat_website/staticfiles/
 .db_info
 .claude/
 *.sqlite3
+SECURITY_TODO.md
