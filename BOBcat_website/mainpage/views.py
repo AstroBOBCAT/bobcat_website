@@ -199,29 +199,47 @@ def _format_for_display(key, val):
     except (TypeError, ValueError):
         return val
 
-def _form_field_context():
-    """Static context needed to render the form panel in either query mode."""
+def _form_field_context(request=None):
+    """Context needed to render the form panel in either query mode.
 
-    def _bm_fields(names):
+    When ``request`` is supplied the currently submitted values are threaded
+    back into each field dict so the form repopulates after a re-render (e.g.
+    sorting a column, which round-trips through the server via GET). Django
+    templates can't index request.GET by a dynamic key, so the value/min/max
+    and checked state have to be attached here rather than in the template.
+    """
+    data = request.GET if request is not None else {}
+    checked_cats = request.GET.getlist("ev_cat") if request is not None else []
+
+    def _range_fields(names, model):
         return [
-            {"name": f, "label": FLOAT_FIELD_LABELS[f], "help_text": BinaryModel._meta.get_field(f).help_text or ""}
+            {
+                "name": f,
+                "label": FLOAT_FIELD_LABELS[f],
+                "help_text": model._meta.get_field(f).help_text or "",
+                "value": data.get(f, ""),
+                "min": data.get(f"{f}_min", ""),
+                "max": data.get(f"{f}_max", ""),
+            }
             for f in names
         ]
 
     return {
-        "candidate_float_fields": [
-            {"name": f, "label": FLOAT_FIELD_LABELS[f], "help_text": Candidate._meta.get_field(f).help_text or ""}
-            for f in CANDIDATE_FLOAT_FIELDS
-        ],
-        "mass_fields":  _bm_fields(MASS_FIELDS),
-        "orbit_fields": _bm_fields(ORBIT_FIELDS),
-        "gw_fields":    _bm_fields(GW_FIELDS),
+        "candidate_float_fields": _range_fields(CANDIDATE_FLOAT_FIELDS, Candidate),
+        "mass_fields":  _range_fields(MASS_FIELDS, BinaryModel),
+        "orbit_fields": _range_fields(ORBIT_FIELDS, BinaryModel),
+        "gw_fields":    _range_fields(GW_FIELDS, BinaryModel),
         "evidence_categories": [
-            {"value": val, "label": label}
+            {"value": val, "label": label, "checked": val in checked_cats}
             for val, label in EvidenceCategory.choices
         ],
         "text_fields": [
-            {"name": f, "label": TEXT_FIELD_LABELS[f], "help_text": BinaryModel._meta.get_field(f).help_text or ""}
+            {
+                "name": f,
+                "label": TEXT_FIELD_LABELS[f],
+                "help_text": BinaryModel._meta.get_field(f).help_text or "",
+                "value": data.get(f, ""),
+            }
             for f in TEXT_FIELDS
         ],
         "all_columns": [
@@ -234,7 +252,7 @@ def _form_field_context():
 def binary_model_search(request):
     if not Candidate.objects.exists():
         context = {
-            **_form_field_context(),
+            **_form_field_context(request),
             "query_mode": "form",
             "empty_db": True,
             "rows": [],
@@ -260,7 +278,7 @@ def binary_model_search(request):
             query_mode, active_q  = mode, ""
 
         context = {
-            **_form_field_context(),
+            **_form_field_context(request),
             "query_mode":  query_mode,
             "sql_query":   sql_query,
             "adql_query":  adql_query,
@@ -510,7 +528,7 @@ def binary_model_search(request):
                 row.append({"is_evidence": False, "value": _format_for_display(key, val)})
         rows.append(row)
 
-    form_ctx = _form_field_context()
+    form_ctx = _form_field_context(request)
     form_ctx["all_columns"] = [
         {**col, "checked": col["key"] in active_key_set}
         for col in ALL_COLUMNS

@@ -8,6 +8,7 @@
 {% endblock %}
 
 {% block content %}
+<div id="page-progress" class="page-progress" hidden aria-hidden="true"></div>
 <main class="query-page">
   <header class="query-header">
     <div>
@@ -79,15 +80,15 @@
   <section class="query-panel" aria-labelledby="query-form-title">
 
     {# ── Mode toggle tabs ── #}
-    <div class="mode-tabs" role="tablist">
-      <button class="mode-tab" id="tab-form" role="tab" type="button">Form Search</button>
-      <button class="mode-tab" id="tab-sql"  role="tab" type="button">SQL</button>
-      <button class="mode-tab" id="tab-adql" role="tab" type="button">ADQL</button>
+    <div class="mode-tabs" role="tablist" aria-label="Query mode">
+      <button class="mode-tab" id="tab-form" role="tab" type="button" aria-controls="panel-form" aria-selected="false" tabindex="-1">Form Search</button>
+      <button class="mode-tab" id="tab-sql"  role="tab" type="button" aria-controls="panel-sql"  aria-selected="false" tabindex="-1">SQL</button>
+      <button class="mode-tab" id="tab-adql" role="tab" type="button" aria-controls="panel-adql" aria-selected="false" tabindex="-1">ADQL</button>
       <a class="reset-link" href="{% url 'binary-model-search' %}">Reset</a>
     </div>
 
     {# ── Form mode panel ── #}
-    <div id="panel-form">
+    <div id="panel-form" role="tabpanel" aria-labelledby="tab-form" tabindex="0">
       <form class="query-form" method="get">
         <div class="form-grid compact-grid">
           <label>
@@ -151,15 +152,15 @@
                   <span>{{ field.label }}</span>
                   <label>
                     Exact
-                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                    <input type="number" step="any" name="{{ field.name }}" value="{{ field.value }}" placeholder="Any">
                   </label>
                   <label>
                     Min
-                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                    <input type="number" step="any" name="{{ field.name }}_min" value="{{ field.min }}" placeholder="Min">
                   </label>
                   <label>
                     Max
-                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                    <input type="number" step="any" name="{{ field.name }}_max" value="{{ field.max }}" placeholder="Max">
                   </label>
                 </div>
               {% endfor %}
@@ -174,15 +175,15 @@
                   <span>{{ field.label }}</span>
                   <label>
                     Exact
-                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                    <input type="number" step="any" name="{{ field.name }}" value="{{ field.value }}" placeholder="Any">
                   </label>
                   <label>
                     Min
-                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                    <input type="number" step="any" name="{{ field.name }}_min" value="{{ field.min }}" placeholder="Min">
                   </label>
                   <label>
                     Max
-                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                    <input type="number" step="any" name="{{ field.name }}_max" value="{{ field.max }}" placeholder="Max">
                   </label>
                 </div>
               {% endfor %}
@@ -197,15 +198,15 @@
                   <span>{{ field.label }}</span>
                   <label>
                     Exact
-                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                    <input type="number" step="any" name="{{ field.name }}" value="{{ field.value }}" placeholder="Any">
                   </label>
                   <label>
                     Min
-                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                    <input type="number" step="any" name="{{ field.name }}_min" value="{{ field.min }}" placeholder="Min">
                   </label>
                   <label>
                     Max
-                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                    <input type="number" step="any" name="{{ field.name }}_max" value="{{ field.max }}" placeholder="Max">
                   </label>
                 </div>
               {% endfor %}
@@ -220,15 +221,15 @@
                   <span>{{ field.label }}</span>
                   <label>
                     Exact
-                    <input type="number" step="any" name="{{ field.name }}" placeholder="Any">
+                    <input type="number" step="any" name="{{ field.name }}" value="{{ field.value }}" placeholder="Any">
                   </label>
                   <label>
                     Min
-                    <input type="number" step="any" name="{{ field.name }}_min" placeholder="Min">
+                    <input type="number" step="any" name="{{ field.name }}_min" value="{{ field.min }}" placeholder="Min">
                   </label>
                   <label>
                     Max
-                    <input type="number" step="any" name="{{ field.name }}_max" placeholder="Max">
+                    <input type="number" step="any" name="{{ field.name }}_max" value="{{ field.max }}" placeholder="Max">
                   </label>
                 </div>
               {% endfor %}
@@ -243,7 +244,7 @@
                 <div class="check-dropdown-panel">
                   {% for cat in evidence_categories %}
                     <label class="check-dropdown-item">
-                      <input type="checkbox" name="ev_cat" value="{{ cat.value }}">
+                      <input type="checkbox" name="ev_cat" value="{{ cat.value }}"{% if cat.checked %} checked{% endif %}>
                       {{ cat.label }}
                     </label>
                   {% endfor %}
@@ -262,7 +263,7 @@
               {% for field in text_fields %}
                 <label data-tooltip="{{ field.help_text }}">
                   {{ field.label }}
-                  <input type="search" name="{{ field.name }}" placeholder="Contains...">
+                  <input type="search" name="{{ field.name }}" value="{{ field.value }}" placeholder="Contains...">
                 </label>
               {% endfor %}
             </div>
@@ -273,12 +274,18 @@
     </div>
 
     {# ── SQL panel ── #}
-    <div id="panel-sql">
+    <div id="panel-sql" role="tabpanel" aria-labelledby="tab-sql" tabindex="0">
       <div class="sql-panel">
         <p class="sql-hint">
           Standard PostgreSQL SQL &nbsp;·&nbsp; Only <code>SELECT</code> permitted &nbsp;·&nbsp; Results capped at 1 000 rows.
           <br>Tables: <code>candidate</code>, <code>bib</code>, <code>binary_model</code>, <code>model_evidence</code>, <code>evidence_subcategory</code>
         </p>
+        <div class="example-queries">
+          <span class="example-label">Examples:</span>
+          <button type="button" class="example-chip" data-query="SELECT * FROM binary_model WHERE m1 &gt; 8 LIMIT 50">Massive primaries</button>
+          <button type="button" class="example-chip" data-query="SELECT * FROM binary_model ORDER BY eccentricity DESC LIMIT 25">Most eccentric</button>
+          <button type="button" class="example-chip" data-query="SELECT * FROM candidate LIMIT 50">Browse candidates</button>
+        </div>
         <form method="get" class="sql-form">
           <input type="hidden" name="mode" value="sql">
           <textarea
@@ -300,7 +307,7 @@
     </div>
 
     {# ── ADQL panel ── #}
-    <div id="panel-adql">
+    <div id="panel-adql" role="tabpanel" aria-labelledby="tab-adql" tabindex="0">
       <div class="sql-panel">
         <p class="sql-hint">
           ADQL (Astronomical Data Query Language) &nbsp;·&nbsp; Only <code>SELECT</code> permitted &nbsp;·&nbsp; Results capped at 1 000 rows.
@@ -308,6 +315,12 @@
           <br><code>SELECT TOP n</code> is translated to <code>LIMIT n</code>.
           Geometric functions (<code>CIRCLE</code>, <code>CONTAINS</code>, <code>DISTANCE</code>, …) are supported via <strong>pg_sphere</strong>.
         </p>
+        <div class="example-queries">
+          <span class="example-label">Examples:</span>
+          <button type="button" class="example-chip" data-query="SELECT TOP 50 * FROM binary_model WHERE m1 &gt; 8">Massive primaries</button>
+          <button type="button" class="example-chip" data-query="SELECT TOP 25 * FROM binary_model ORDER BY eccentricity DESC">Most eccentric</button>
+          <button type="button" class="example-chip" data-query="SELECT TOP 50 * FROM candidate WHERE 1=CONTAINS(POINT('ICRS', jra, jdec), CIRCLE('ICRS', 150.0, 2.0, 5.0))">Cone search</button>
+        </div>
         <form method="get" class="sql-form">
           <input type="hidden" name="mode" value="adql">
           <textarea
@@ -338,7 +351,7 @@
 
   <section class="results-section" aria-labelledby="results-title">
     <div class="results-heading">
-      <!--<div>
+      <div>
         <p class="eyebrow">Results</p>
         <h2 id="results-title">
           {% if has_query %}
@@ -347,7 +360,10 @@
             All binary models
           {% endif %}
         </h2>
-      </div>-->
+        {% if result_count >= 1000 %}
+          <p class="results-count-note">Showing the first 1000 rows (result limit reached) — narrow your query to see the rest.</p>
+        {% endif %}
+      </div>
       {% if query_mode == "form" %}
         <form method="get" class="download-form">
           {% for key, value in request.GET.items %}
@@ -389,7 +405,8 @@
                 <th>
                   {% if col.sortable %}
                     <a href="{{ col.sort_url }}" class="sort-header{% if col.sort_indicator %} sorted{% endif %}">
-                      {{ col.label }}&nbsp;{{ col.sort_indicator }}
+                      {{ col.label }}
+                      <span class="sort-arrow" aria-hidden="true">{% if col.sort_indicator %}{{ col.sort_indicator }}{% else %}↕{% endif %}</span>
                     </a>
                   {% else %}
                     {{ col.label }}
@@ -434,9 +451,17 @@
   const tabs   = { form: 'tab-form', sql: 'tab-sql', adql: 'tab-adql' };
   const panels = { form: 'panel-form', sql: 'panel-sql', adql: 'panel-adql' };
 
-  function activate(mode) {
+  const modes = Object.keys(tabs);
+
+  function activate(mode, focusTab) {
     Object.entries(tabs).forEach(([m, id]) => {
-      document.getElementById(id).classList.toggle('active', m === mode);
+      const tab = document.getElementById(id);
+      const selected = m === mode;
+      tab.classList.toggle('active', selected);
+      // ARIA state + roving tabindex so only the active tab is in the tab order.
+      tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected && focusTab) tab.focus();
     });
     Object.entries(panels).forEach(([m, id]) => {
       document.getElementById(id).hidden = m !== mode;
@@ -445,7 +470,63 @@
 
   activate("{{ query_mode }}");
   Object.entries(tabs).forEach(([m, id]) => {
-    document.getElementById(id).addEventListener('click', () => activate(m));
+    const tab = document.getElementById(id);
+    tab.addEventListener('click', () => activate(m));
+    // Left/Right (and Home/End) move between tabs, per the WAI-ARIA tabs pattern.
+    tab.addEventListener('keydown', (e) => {
+      const i = modes.indexOf(m);
+      let next = null;
+      if (e.key === 'ArrowRight') next = modes[(i + 1) % modes.length];
+      else if (e.key === 'ArrowLeft') next = modes[(i - 1 + modes.length) % modes.length];
+      else if (e.key === 'Home') next = modes[0];
+      else if (e.key === 'End') next = modes[modes.length - 1];
+      if (next) { e.preventDefault(); activate(next, true); }
+    });
+  });
+
+  // ── Example query chips populate the textarea in their own panel ─────────
+  document.querySelectorAll('.example-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const area = chip.closest('.sql-panel').querySelector('.sql-input');
+      if (area) { area.value = chip.dataset.query; area.focus(); }
+    });
+  });
+
+  // ── Loading indicator ──────────────────────────────────────────────────
+  // Every search and every column-sort is a full server round-trip, so give
+  // immediate feedback: show a top progress bar and mark the button busy.
+  const progress = document.getElementById('page-progress');
+  function startProgress(btn) {
+    if (progress) progress.hidden = false;
+    if (btn) {
+      btn.dataset.originalText = btn.textContent;
+      btn.textContent = 'Running…';
+      btn.setAttribute('aria-busy', 'true');
+      btn.disabled = true;
+    }
+  }
+  // Query submissions (form / SQL / ADQL). The download form is excluded on
+  // purpose: it streams a file without navigating, so its button must not lock.
+  document.querySelectorAll('.query-form, .sql-form').forEach((form) => {
+    form.addEventListener('submit', () => {
+      startProgress(form.querySelector('button[type="submit"]'));
+    });
+  });
+  // Column-sort links also round-trip to the server.
+  document.querySelectorAll('.sort-header').forEach((link) => {
+    link.addEventListener('click', () => startProgress(null));
+  });
+  // A restored page from the bfcache would otherwise show a stuck bar.
+  window.addEventListener('pageshow', () => { if (progress) progress.hidden = true; });
+
+  // ── Ctrl/⌘+Enter runs the SQL/ADQL query from the textarea ─────────────
+  document.querySelectorAll('.sql-input').forEach((area) => {
+    area.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (area.form) area.form.requestSubmit();
+      }
+    });
   });
 })();
 </script>
