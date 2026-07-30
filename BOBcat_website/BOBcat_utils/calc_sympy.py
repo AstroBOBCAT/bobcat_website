@@ -251,6 +251,11 @@ def find_m1_m2(
 
         solutions = sp.solve(equations, [_m1, _m2], dict=True)
 
+        # Check if solutions are physical. Certain combinations of parameters
+        # may yield complex solutions for m1, m2. This block disregards them
+        # and stores only physical solutions, within a tolerance of 1e-9
+        # (to account for floating point errors? unclear why such a lax
+        # tolerance is used).
         physical = []
         for sol in solutions:
             try:
@@ -394,7 +399,6 @@ def q_limit(chirp_mass_log10: float, total_mass_log10: float) -> tuple[float, fl
 
     q, multiplier = roots[0], roots[-1]
     return q, multiplier
-
 
 # This is the BOBcat SMBHB Candidate Mass Value Calculator. It will
 # read provided inputs of mass quantities and can calculate unknown
