@@ -1,6 +1,9 @@
+import json
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,7 +28,12 @@ from mainpage.models import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SHEET_KEY = "1DTFQ3KMg1qkonvCv6veT0TqLmC4hbdjUQ09_CQfVMoI"
+# BOBCAT_SHEET_KEY is set in .db_info (the project's env file, loaded via
+# docker-compose's env_file:) alongside the other deployment settings; the
+# literal string here is only a fallback for environments that don't set it.
+DEFAULT_SHEET_KEY = os.environ.get(
+    "BOBCAT_SHEET_KEY", "1DTFQ3KMg1qkonvCv6veT0TqLmC4hbdjUQ09_CQfVMoI"
+)
 
 DAYS_PER_YEAR = 365.25
 
@@ -40,8 +48,8 @@ PARAM_TO_FIELD = {
     "inclination": "inclination",
     "semi-major axis": "semimajor_axis",
     "separation": "separation",
-    "period epoch": "rm_orb_period_epoch",
-    "orbital period (earth frame)": "rm_orb_period",
+    "period epoch": "orb_period_epoch",
+    "orbital period (earth frame)": "orb_period",
     "Summary/notes on source": "summary",
     "Caveats": "caveats",
     "Extension project": "ext_proj",
@@ -58,10 +66,25 @@ VALID_RANGES = {
     "inclination": (0, 90),
     "semi-major axis": (0, 1000),
     "separation": (0, 1000),
-    "period epoch": (40000, 70000),
+    "period epoch": (40000, 70000), # Jordan NOTE: I would bet one of the astronomy packages has a function which gets the current MJD, which would be a better upper bound
 }
 
 VALID_ERROR_TYPES = {et[0] for et in ERROR_TYPE_CHOICES}
+
+# Sheet parameter names that carry an Error / Error type column pair.
+_NUMERIC_PARAMS = [
+    "eccentricity", "log(m1)", "log(m2)", "log(total mass)",
+    "log(chirp mass)", "log(reduced mass)", "q", "inclination",
+    "semi-major axis", "separation", "orbital period (earth frame)",
+]
+
+# When True, a sheet value for any of _NUMERIC_PARAMS is only used to fill
+# a BinaryModel field (and, transitively, to calculate other fields from
+# it) if that value has a "valid" associated error: either an Error value
+# AND an Error type, or an Error type of "Assumed" (which may carry no
+# explicit Error value). Values without a valid error are treated as if
+# blank. See _row_has_valid_error().
+STRICT_ERROR = True
 
 EVIDENCE_CATEGORY_MAP = {
     # DB value → DB value (identity, for sheet values that already match)
@@ -206,7 +229,12 @@ def get_parameter_sheet(sheet_url: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def extract_bibcode(link: str) -> tuple[str, str]:
-    """Return (scix_link, bibcode) from an ADS or SciX URL."""
+    """Return (scix_link, bibcode) from an ADS or SciX URL.
+
+    DOI links (doi.org / dx.doi.org) are also accepted; the DOI itself is
+    returned in the bibcode slot (resolving a DOI to a real bibcode would
+    need the ADS API and a token).
+    """
     link = str(link).strip()
     for domain in ("ui.adsabs", "scixplorer.org"):
         if domain in link:
@@ -215,6 +243,9 @@ def extract_bibcode(link: str) -> tuple[str, str]:
             bibcode = bibcode.replace("%26", "&") # Fixes A%26A URL code for A&A journal (and potentially others)
             scix_link = f"https://scixplorer.org/abs/{bibcode}"
             return scix_link, bibcode
+    if "doi.org/" in link:
+        doi = link.split("doi.org/", 1)[1].strip("/")
+        return link, doi
     return link, ""
 
 
@@ -244,6 +275,30 @@ def _is_blank(val) -> bool:
     return str(val).strip().lower() in _BLANK
 
 
+def _row_has_valid_error(indexed_df: pd.DataFrame, param: str) -> bool:
+    """True if `param`'s row has an Error value and a recognized Error
+    type, or an Error type of "Assumed" (which may carry no explicit
+    value). Used both to decide whether to record an error (parse_errors)
+    and, under STRICT_ERROR, whether to use the value at all
+    (validate_and_fill)."""
+    err_raw = _get_cell(indexed_df, param, "Error")
+    etype_raw = _get_cell(indexed_df, param, "Error type")
+
+    if _is_blank(etype_raw):
+        return False
+    etype_str = str(etype_raw).strip()
+    etype_is_assumed = etype_str.lower() == "assumed"
+
+    if _is_blank(err_raw) and not etype_is_assumed:
+        return False
+
+    etype_normalized = _ERROR_TYPE_ALIASES.get(etype_str.lower(), etype_str)
+    if etype_normalized is not None and etype_normalized not in VALID_ERROR_TYPES:
+        logger.warning("Unknown error type '%s' for %s, skipping", etype_str, param)
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Parsing a parameter sheet
 # ---------------------------------------------------------------------------
@@ -269,10 +324,21 @@ def _get_cell(indexed_df: pd.DataFrame, name: str, col: str = "Value"):
 # Validation & value filling
 # ---------------------------------------------------------------------------
 
-def validate_and_fill(indexed_df: pd.DataFrame) -> tuple[dict, list[str]]:
-    """Validate parameter values, fill missing masses/frequencies.
+def validate_and_fill(indexed_df: pd.DataFrame, lum_dist: float | None = None) -> tuple[dict, list[str], list[dict]]:
+    """Validate parameter values, fill missing masses/frequencies and
+    derived quantities (Kepler semi-major axis, GW strain, inspiral time).
 
-    Returns (field_values_for_BinaryModel, list_of_warnings).
+    If STRICT_ERROR is True, sheet values for parameters in _NUMERIC_PARAMS
+    are only used (and thus only feed the mass/frequency/derived-quantity
+    calculations below) when they have a valid associated error; see
+    _row_has_valid_error().
+
+    If q is tagged as a lower limit, derived quantities are filled as the
+    midpoint of the range spanned by q = q_given .. 1, and a range error
+    (error_type=None, following the "range" alias convention) is emitted
+    for each.
+
+    Returns (field_values_for_BinaryModel, list_of_warnings, derived_errors).
     """
     warnings: list[str] = []
     fields: dict = {}
@@ -286,6 +352,14 @@ def validate_and_fill(indexed_df: pd.DataFrame) -> tuple[dict, list[str]]:
             fields[db_field] = str(raw)[:750]
             continue
 
+        if (STRICT_ERROR and sheet_name in _NUMERIC_PARAMS
+                and not _row_has_valid_error(indexed_df, sheet_name)):
+            warnings.append(
+                f"{sheet_name}={raw}: skipped (STRICT_ERROR is on and this "
+                f"value has no valid associated error)"
+            )
+            continue
+
         fval = _safe_float(raw)
         if fval is None:
             warnings.append(f"{sheet_name}: could not parse '{raw}' as float")
@@ -297,48 +371,152 @@ def validate_and_fill(indexed_df: pd.DataFrame) -> tuple[dict, list[str]]:
                 warnings.append(f"{sheet_name}={fval} outside [{lo}, {hi}]")
                 continue
 
-        if db_field == "rm_orb_period":
+        if db_field == "orb_period":
             fval = fval / DAYS_PER_YEAR
 
         fields[db_field] = fval
 
-    # Mass value filling via calc.update_masses
-    m1 = fields.get("m1")
-    m2 = fields.get("m2")
-    mtot = fields.get("mtot")
-    mc = fields.get("mc")
-    mu = fields.get("mu")
-    q = fields.get("q")
+    freq_hz_sheet = _safe_float(_get_cell(indexed_df, "orbital frequency (earth frame)"))
 
-    try:
-        mass_array, updated = calc.update_masses(m1, m2, mtot, mc, mu, q)
-        mass_fields = ["m1", "m2", "mtot", "mc", "mu", "q"]
-        for i, mf in enumerate(mass_fields):
-            if mf not in fields and mass_array[i] is not None and not np.isnan(mass_array[i]):
-                fields[mf] = mass_array[i]
-                warnings.append(f"Filled {mf}={mass_array[i]:.6g}")
-    except Exception as e:
-        warnings.append(f"Mass filling failed: {e}")
+    def _derive(base: dict) -> tuple[dict, list[str]]:
+        """Fill every derivable quantity from a copy of the parsed fields."""
+        f = dict(base)
+        notes: list[str] = []
 
-    # Frequency / period filling
-    period_days = _safe_float(_get_cell(indexed_df, "orbital period (earth frame)"))
-    freq_hz = _safe_float(_get_cell(indexed_df, "orbital frequency (earth frame)"))
+        # Mass value filling
+        if f.get("m1") is None or f.get("m2") is None:
+            try:
+                m1_log, m2_log = calc.find_m1_m2(
+                    f.get("m1"), f.get("m2"), f.get("mtot"),
+                    f.get("q"), f.get("mc"), f.get("mu"),
+                )
+                if f.get("m1") is None and m1_log is not None:
+                    f["m1"] = m1_log
+                    notes.append(f"Filled m1={m1_log:.6g}")
+                if f.get("m2") is None and m2_log is not None:
+                    f["m2"] = m2_log
+                    notes.append(f"Filled m2={m2_log:.6g}")
+            except Exception as e:
+                notes.append(f"Could not derive m1/m2: {e}")
 
-    if period_days is not None or freq_hz is not None:
-        try:
-            period_yr = period_days / DAYS_PER_YEAR if period_days is not None else None
-            f_orb, T_yr, _ = calc.freq_calc(T=period_yr, f_orb=freq_hz)
-            if "rm_orb_period" not in fields and T_yr is not None and not np.isnan(T_yr):
-                fields["rm_orb_period"] = T_yr
-                warnings.append(f"Filled rm_orb_period={T_yr:.6g} yr")
-        except Exception as e:
-            warnings.append(f"Frequency filling failed: {e}")
+        m1, m2 = f.get("m1"), f.get("m2")
+        if m1 is not None and m2 is not None:
+            fill_funcs = [
+                ("mtot", calc.Mtot_calc),
+                ("mc", calc.Mc_calc),
+                ("mu", calc.mu_calc),
+                ("q", calc.q_calc),
+            ]
+            for name, func in fill_funcs:
+                if name not in f:
+                    try:
+                        val = func(m1, m2)
+                        if val is not None and not np.isnan(val):
+                            f[name] = val
+                            notes.append(f"Filled {name}={val:.6g}")
+                    except Exception as e:
+                        notes.append(f"Failed to compute {name}: {e}")
 
-    # Consistency checks (warn only, don't reject)
-    if fields.get("m1") is not None and fields.get("m2") is not None:
+        # Frequency / period filling
+        if f.get("orb_period") is None and freq_hz_sheet is not None:
+            try:
+                _, T_yr, _ = calc.freq_calc(orbital_frequency_hz=freq_hz_sheet)
+                if T_yr is not None and not np.isnan(T_yr):
+                    f["orb_period"] = T_yr
+                    notes.append(f"Filled orb_period={T_yr:.6g} yr")
+            except Exception as e:
+                notes.append(f"Frequency filling failed: {e}")
+
+        # Kepler semi-major axis from period + total mass
+        if (f.get("semimajor_axis") is None
+                and f.get("orb_period") is not None
+                and f.get("mtot") is not None):
+            try:
+                a_pc = calc.kepler_semimajor(f["orb_period"], f["mtot"])
+                f["semimajor_axis"] = a_pc
+                notes.append(f"Filled semimajor_axis={a_pc:.6g} pc (Kepler)")
+            except Exception as e:
+                notes.append(f"Kepler semi-major axis failed: {e}")
+
+        # GW strain (needs chirp mass, luminosity distance, GW frequency)
+        freq_hz = freq_hz_sheet
+        if freq_hz is None and f.get("orb_period"):
+            freq_hz = 1.0 / (f["orb_period"] * DAYS_PER_YEAR * 86400)
+        if f.get("mc") is not None and lum_dist is not None and freq_hz is not None:
+            try:
+                f["gw_strain"] = calc.strain_calc(f["mc"], lum_dist, 2 * freq_hz)
+                notes.append(f"Filled gw_strain={f['gw_strain']:.6g}")
+            except Exception as e:
+                notes.append(f"GW strain calc failed: {e}")
+
+        # GW inspiral timescale (years; needs semi-major axis, mtot, mu)
+        if (f.get("semimajor_axis") is not None
+                and f.get("mtot") is not None
+                and f.get("mu") is not None):
+            try:
+                f["gw_inspiral_timescale"] = calc.tgw_calc(
+                    f["semimajor_axis"], f["mtot"], f["mu"]
+                )
+                notes.append(f"Filled gw_inspiral_timescale={f['gw_inspiral_timescale']:.6g} yr")
+            except Exception as e:
+                notes.append(f"GW inspiral timescale failed: {e}")
+
+        return f, notes
+
+    # Is q tagged as a lower limit? (Blank Error cells mean parse_errors
+    # records nothing for it, so handle the range semantics here.)
+    q_etype_raw = _get_cell(indexed_df, "q", "Error type")
+    q_is_lower_limit = (
+        fields.get("q") is not None
+        and not _is_blank(q_etype_raw)
+        and str(q_etype_raw).strip().lower() == "lower limit"
+    )
+
+    derived_errors: list[dict] = []
+    if q_is_lower_limit:
+        # Derive everything at both ends of the allowed range q_given..1;
+        # store midpoints and a range error for quantities that vary.
+        lo_fields, lo_notes = _derive(fields)
+        hi_base = dict(fields)
+        hi_base["q"] = 1.0
+        hi_fields, _ = _derive(hi_base)
+        warnings.extend(lo_notes)
+        warnings.append(
+            f"q={fields['q']:.6g} is a lower limit: derived values filled as "
+            f"midpoints of the q={fields['q']:.6g}..1 range"
+        )
+
+        merged = dict(lo_fields)
+        merged["q"] = fields["q"]  # keep the given lower limit as-is
+        for key in ("m1", "m2", "mtot", "mc", "mu",
+                    "semimajor_axis", "gw_strain", "gw_inspiral_timescale"):
+            lo_v, hi_v = lo_fields.get(key), hi_fields.get(key)
+            if key in fields or lo_v is None or hi_v is None:
+                continue  # given directly, or not derivable at one endpoint
+            span = abs(hi_v - lo_v)
+            if span <= 1e-12 * max(abs(hi_v), abs(lo_v)):
+                continue  # doesn't actually depend on q
+            mid = 0.5 * (lo_v + hi_v)
+            merged[key] = mid
+            derived_errors.append({
+                "property_name": key[:25],
+                "error_type": None,  # "range", per _ERROR_TYPE_ALIASES
+                "error_lower": min(lo_v, hi_v) - mid,
+                "error_upper": max(lo_v, hi_v) - mid,
+            })
+        fields = merged
+    else:
+        fields, notes = _derive(fields)
+        warnings.extend(notes)
+
+    # Consistency checks (warn only, don't reject). Skipped for
+    # lower-limit q: midpoint values are intentionally not mutually
+    # consistent, so the check would always fire.
+    if (not q_is_lower_limit
+            and fields.get("m1") is not None and fields.get("m2") is not None):
         _check_mass_consistency(fields, warnings)
 
-    return fields, warnings
+    return fields, warnings, derived_errors
 
 
 def _check_mass_consistency(fields: dict, warnings: list[str]):
@@ -365,12 +543,6 @@ def _check_mass_consistency(fields: dict, warnings: list[str]):
 # Error parsing
 # ---------------------------------------------------------------------------
 
-_NUMERIC_PARAMS = [
-    "eccentricity", "log(m1)", "log(m2)", "log(total mass)",
-    "log(chirp mass)", "log(reduced mass)", "q", "inclination",
-    "semi-major axis", "separation", "orbital period (earth frame)",
-]
-
 _ERROR_TYPE_ALIASES = {
     "two sided": "Two-sided",
     "two-sided": "Two-sided",
@@ -386,41 +558,42 @@ _ERROR_TYPE_ALIASES = {
 def parse_errors(indexed_df: pd.DataFrame) -> list[dict]:
     errors = []
     for param in _NUMERIC_PARAMS:
+        if not _row_has_valid_error(indexed_df, param):
+            continue
+
         err_raw = _get_cell(indexed_df, param, "Error")
         etype_raw = _get_cell(indexed_df, param, "Error type")
-        if _is_blank(err_raw) or _is_blank(etype_raw):
-            continue
-
         etype_str = str(etype_raw).strip()
         etype_normalized = _ERROR_TYPE_ALIASES.get(etype_str.lower(), etype_str)
-        if etype_normalized is not None and etype_normalized not in VALID_ERROR_TYPES:
-            logger.warning("Unknown error type '%s' for %s, skipping", etype_str, param)
-            continue
 
-        err_str = str(err_raw).strip()
-        if "," in err_str:
-            parts = err_str.split(",", 1)
-        elif " - " in err_str:
-            parts = err_str.split(" - ", 1)
-        else:
-            parts = [err_str]
-
-        try:
-            if len(parts) == 2:
-                error_lower = float(parts[0].strip())
-                error_upper = float(parts[1].strip())
+        if not _is_blank(err_raw):
+            err_str = str(err_raw).strip()
+            if "," in err_str:
+                parts = err_str.split(",", 1)
+            elif " - " in err_str:
+                parts = err_str.split(" - ", 1)
             else:
-                val = abs(float(parts[0].strip()))
-                error_lower = -val
-                error_upper = val
-        except ValueError:
-            logger.warning("Could not parse error '%s' for %s", err_str, param)
-            continue
+                parts = [err_str]
+
+            try:
+                if len(parts) == 2:
+                    error_lower = float(parts[0].strip())
+                    error_upper = float(parts[1].strip())
+                else:
+                    val = abs(float(parts[0].strip()))
+                    error_lower = -val
+                    error_upper = val
+            except ValueError:
+                logger.warning("Could not parse error '%s' for %s", err_str, param)
+                continue
+        else:
+            error_lower = 0.0
+            error_upper = 0.0
 
         db_field = PARAM_TO_FIELD.get(param, param)
 
         # Convert period errors from days to years
-        if db_field == "rm_orb_period":
+        if db_field == "orb_period":
             error_lower /= DAYS_PER_YEAR
             error_upper /= DAYS_PER_YEAR
 
@@ -479,13 +652,31 @@ def parse_evidence(indexed_df: pd.DataFrame) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 NED_MAX_WORKERS = 4
+NED_CACHE_PATH = Path(__file__).resolve().parent.parent / "data" / "ned_cache.json"
+
+
+def _load_ned_cache() -> dict:
+    try:
+        if NED_CACHE_PATH.exists():
+            return json.loads(NED_CACHE_PATH.read_text())
+    except Exception as e:
+        logger.warning("Could not load NED disk cache: %s", e)
+    return {}
+
+
+def _save_ned_cache(cache: dict) -> None:
+    try:
+        NED_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        NED_CACHE_PATH.write_text(json.dumps(cache, indent=2))
+    except Exception as e:
+        logger.warning("Could not save NED disk cache: %s", e)
 
 
 def resolve_candidate(ned_name: str) -> dict:
     result = {"jra": 0.0, "jdec": 0.0, "redshift": None, "lum_dist": None}
 
     try:
-        #astrodb.clear_ned_cache() # This was bugged on my machine (Jordan)
+        astrodb.clear_ned_cache()
         ra, dec = astrodb.coord_finder(ned_name)
         coords = SkyCoord(ra, dec)
         result["jra"] = float(coords.ra.degree)
@@ -507,17 +698,50 @@ def resolve_candidate(ned_name: str) -> dict:
 
 
 def resolve_candidates_parallel(names: list[str]) -> dict[str, dict]:
-    """Resolve multiple candidates via NED in parallel (I/O-bound)."""
+    """Resolve multiple candidates via NED in parallel (I/O-bound).
+
+    Checks the DB and a disk cache before hitting NED, so re-runs only
+    query objects that have never been resolved before.
+    """
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=NED_MAX_WORKERS) as pool:
-        futures = {pool.submit(resolve_candidate, name): name for name in names}
-        for future in as_completed(futures):
-            name = futures[future]
-            try:
-                results[name] = future.result()
-            except Exception as e:
-                logger.error("NED resolution crashed for %s: %s", name, e)
-                results[name] = {"jra": 0.0, "jdec": 0.0, "redshift": None, "lum_dist": None}
+
+    # 1. Pull already-resolved candidates from the DB.
+    for c in Candidate.objects.filter(name__in=names):
+        if c.jra is not None and c.redshift is not None:
+            results[c.name] = {
+                "jra": c.jra,
+                "jdec": c.jdec,
+                "redshift": c.redshift,
+                "lum_dist": c.lum_dist,
+            }
+            logger.info("Skipping NED for %s — found in DB", c.name)
+
+    # 2. Check disk cache for anything not in the DB.
+    disk_cache = _load_ned_cache()
+    for name in names:
+        if name not in results and name in disk_cache:
+            results[name] = disk_cache[name]
+            logger.info("Skipping NED for %s — found in disk cache", name)
+
+    # 3. Only hit NED for names not satisfied by DB or cache.
+    to_resolve = [n for n in names if n not in results]
+    if to_resolve:
+        logger.info("Querying NED for %d candidates (%d threads)...", len(to_resolve), NED_MAX_WORKERS)
+        with ThreadPoolExecutor(max_workers=NED_MAX_WORKERS) as pool:
+            futures = {pool.submit(resolve_candidate, name): name for name in to_resolve}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    ned_result = future.result()
+                    results[name] = ned_result
+                    disk_cache[name] = ned_result
+                except Exception as e:
+                    logger.error("NED resolution crashed for %s: %s", name, e)
+                    results[name] = {"jra": 0.0, "jdec": 0.0, "redshift": None, "lum_dist": None}
+        _save_ned_cache(disk_cache)
+    else:
+        logger.info("All %d candidates resolved from DB/cache — skipping NED", len(names))
+
     return results
 
 
@@ -563,13 +787,11 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
         logger.warning("Dropped %d duplicate sheet entries", before - len(model_list))
 
     # ── 2. Resolve candidates from NED (parallel) ────────────────────
-    print("DEBUG: RESOLVING CANDIDATES")
     unique_names = list(model_list["NED Name"].unique())
     logger.info("Resolving %d candidates via NED (%d threads)...", len(unique_names), NED_MAX_WORKERS)
     candidate_cache = resolve_candidates_parallel(unique_names)
 
     # ── 3. Create or skip Candidate rows ───────────────────────────────
-    print("DEBUG: CREATE OR SKIP CANDIDATES")
     for name, info in candidate_cache.items():
         _, created = Candidate.objects.get_or_create(
             name=name,
@@ -586,7 +808,6 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             logger.info("Created candidate: %s", name)
 
     # ── 4. Process each parameter sheet ────────────────────────────────
-    print("DEBUG: PROCESS PARAM SHEETS")
     for _, row in model_list.iterrows():
         ned_name = row["NED Name"]
         paper_link = row["Paper Link"]
@@ -613,43 +834,38 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
 
         indexed = _index_param_sheet(param_df)
 
-        print("DEBUG: GOT A PARAM SHEET")
         # ── Bib ──
         _, bibcode = extract_bibcode(paper_link)
-        print(f"DEBUG: SOURCE {ned_name} FOUND BIBCODE {bibcode} for {paper_link}")
+        logger.info("Source %s: bibcode %s from %s", ned_name, bibcode, paper_link)
         if not bibcode:
             all_warnings.append(f"No bibcode from link: {paper_link}")
             continue
-        if len(bibcode) > 25:
-            all_warnings.append(f"Bibcode too long ({len(bibcode)} chars), skipping: {bibcode}")
+        if len(bibcode) > 29:
+            all_warnings.append(f"Bibcode too long ({len(bibcode)} > 29 chars), skipping: {bibcode}")
             continue
 
+        bib_defaults = {"created_at": now, "updated_at": now}
+        if bibcode.startswith("10."):  # bib_id is a DOI, record it as such
+            bib_defaults["doi"] = bibcode
         bib, created = Bib.objects.get_or_create(
             bib_id=bibcode,
-            defaults={"created_at": now, "updated_at": now},
+            defaults=bib_defaults,
         )
         if created:
             stats["bibs"] += 1
 
-        # ── Validate & fill parameters ──
-        fields, val_warnings = validate_and_fill(indexed)
+        # ── Validate & fill parameters (incl. strain / tgw / Kepler) ──
+        lum_dist = candidate_cache.get(ned_name, {}).get("lum_dist")
+        if lum_dist is None:
+            try:
+                lum_dist = Candidate.objects.get(name=ned_name).lum_dist
+            except Candidate.DoesNotExist:
+                pass
+
+        fields, val_warnings, derived_errors = validate_and_fill(indexed, lum_dist=lum_dist)
         all_warnings.extend(val_warnings)
 
-        # ── GW strain ──
-        gw_strain = None
-        mc_log = fields.get("mc")
-        lum_dist = candidate_cache.get(ned_name, {}).get("lum_dist")
-        freq_hz = _safe_float(_get_cell(indexed, "orbital frequency (earth frame)"))
-
-        if mc_log is not None and lum_dist is not None and freq_hz is not None:
-            try:
-                gw_strain = calc.strain_calc(10**mc_log, lum_dist, 2 * freq_hz)
-                print(gw_strain)
-            except Exception as e:
-                all_warnings.append(f"GW strain calc failed for {ned_name}: {e}")
-        else:
-            print("Strain calculation values reading as none")
-
+        
         # ── Create BinaryModel ──
         model_kwargs = {k: v for k, v in fields.items() if k in BINARY_MODEL_FIELDS}
         try:
@@ -658,7 +874,6 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
                 bib_id=bibcode,
                 sheet_id=sk,
                 created_at=now,
-                gw_strain=gw_strain,
                 **model_kwargs,
             )
             stats["models"] += 1
@@ -669,8 +884,8 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             all_warnings.append(msg)
             continue
 
-        # ── Errors ──
-        error_dicts = parse_errors(indexed)
+        # ── Errors (sheet-provided + derived lower-limit ranges) ──
+        error_dicts = parse_errors(indexed) + derived_errors
         if error_dicts:
             BinaryModelError.objects.bulk_create(
                 [
@@ -688,8 +903,8 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             stats["errors"] += len(error_dicts)
 
         # ── ObsPeriod ──
-        period_yr = fields.get("rm_orb_period")
-        epoch_mjd = fields.get("rm_orb_period_epoch")
+        period_yr = fields.get("orb_period")
+        epoch_mjd = fields.get("orb_period_epoch")
         if period_yr is not None and epoch_mjd is not None:
             obs_period, op_created = ObsPeriod.objects.get_or_create(
                 binary_model=binary_model,
@@ -698,7 +913,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
             )
             if op_created:
                 period_err = next(
-                    (e for e in error_dicts if e["property_name"] == "rm_orb_period"),
+                    (e for e in error_dicts if e["property_name"] == "orb_period"),
                     None,
                 )
                 if period_err:
@@ -717,7 +932,7 @@ def ingest(sheet_key: str = DEFAULT_SHEET_KEY):
                 category=ev["category"],
                 name=ev["subcategory_name"],
             )
-            print(f"for source {ned_name} found subcategory {ev["subcategory_name"]}")
+            logger.info("Source %s: evidence subcategory '%s'", ned_name, ev["subcategory_name"])
             model_ev, _ = ModelEvidence.objects.get_or_create(
                 binary_model=binary_model,
                 subcategory=subcat,

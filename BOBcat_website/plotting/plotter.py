@@ -1,5 +1,6 @@
 #TODO: Add units, make sure this is working with duplicate entries
 import argparse
+from types import NoneType
 import numpy as np
 import plotly.express as px
 from    plotly.offline      import  plot
@@ -9,7 +10,11 @@ from bobcat_db_interface.communications import db_comms
 import plotly.io as pio
 pio.renderers.default = "browser"
 
-def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_duplicate_y=True, no_duplicate_z=True, saveto=None, log_x=False, log_y=False):
+def plotter(param1, param2, param3=None, 
+            color=None, filter_by=None, 
+            no_duplicate_x=True, no_duplicate_y=True, 
+            no_duplicate_z=True, saveto=None,
+            log_x=False, log_y=False):
     
     #establishing the connection
     cur, conn = db_comms.db_connect()
@@ -20,22 +25,58 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
     query = "SELECT column_name FROM information_schema.columns WHERE table_name='candidate';"
     c_cols = pd.read_sql(query, conn)
 
-    # retrieve the data
+    # Retrieve the data
+    #   1. Get only data which passes the parameter filter(s)
+    #       - Check that the filter is in the evidence_subcategory table
+    #       - If so, get all subcategory ids for that filter and pass it to model_evidence for the binary model ids
+    #       - Later, use those binary_model ids to filter df1, df2, etc.
+
+    query = "SELECT binary_model_id FROM binary_model;"
+    binary_model_ids = pd.read_sql(query, conn)['binary_model_id'].tolist() # No filter
+
+    if filter_by is not None:
+
+        query = "SELECT * FROM evidence_subcategory;"
+        evidence_subcategory_table = pd.read_sql(query, conn)
+        ev_cols = evidence_subcategory_table[["evidence_category_type", "evidence_subcategory_type"]].drop_duplicates()
+
+        query = "SELECT binary_model_id, evidence_subcategory_id FROM model_evidence;"
+        model_evidence_table = pd.read_sql(query, conn)
+
+        if type(filter_by) in [list, tuple]:
+            pass # TODO: Implement list/tuple filtering
+        elif type(filter_by) == str:
+            filter = filter_by
+            if filter not in ev_cols.values:
+                raise ValueError("Filter by not found in evidence_subcategory_type.")
+            else:
+                filtered_table = evidence_subcategory_table[(evidence_subcategory_table['evidence_subcategory_type'] == filter) | (evidence_subcategory_table['evidence_category_type'] == filter)]
+                evidence_ids = filtered_table['evidence_subcategory_id'].tolist()
+                binary_model_ids = model_evidence_table[model_evidence_table['evidence_subcategory_id'].isin(evidence_ids)]['binary_model_id'].tolist()
+
+        else:
+            raise ValueError("Filter by must be a string, list, or tuple.")
+        
+    #   2. From the filtered data, select the columns for param1, param2, and param3
     if param1 in bm_cols['column_name'].values:
-        query = "SELECT candidate_name AS name, " + param1 + " FROM binary_model"
+        query = "SELECT candidate_name AS name, binary_model_id, " + param1 + " FROM binary_model"
         df1 = pd.read_sql(query, conn)
+        df1 = df1[df1['binary_model_id'].isin(binary_model_ids)] # Filter
     elif param1 in c_cols['column_name'].values:
-        query = "SELECT name, " + param1 + " FROM candidate"
+        query = "SELECT name, binary_model_id, " + param1 + " FROM candidate"
         df1 = pd.read_sql(query, conn)
+        df1 = df1[df1['binary_model_id'].isin(binary_model_ids)]
     else:
         raise ValueError("Parameter 1 not found in either table.")
     if param2 in bm_cols['column_name'].values:
-        query = "SELECT candidate_name AS name, " + param2 + " FROM binary_model"
+        query = "SELECT candidate_name AS name, binary_model_id, " + param2 + " FROM binary_model"
         df2 = pd.read_sql(query, conn)
+        df2 = df2[df2['binary_model_id'].isin(binary_model_ids)]
         hist = False
     elif param2 in c_cols['column_name'].values:
-        query = "SELECT name, " + param2 + " FROM candidate"
+        query = "SELECT name, binary_model_id, " + param2 + " FROM candidate"
         df2 = pd.read_sql(query, conn)
+        df2 = df2[df2['binary_model_id'].isin(binary_model_ids)]
         hist = False
     elif param2 == "hist":
         hist = True
@@ -44,21 +85,25 @@ def plotter(param1, param2, param3=None, color=None, no_duplicate_x=True, no_dup
     # Optional z data
     if param3 != None:
         if param3 in bm_cols['column_name'].values:
-            query = "SELECT candidate_name AS name, " + param3 + " FROM binary_model"
+            query = "SELECT candidate_name AS name, binary_model_id, " + param3 + " FROM binary_model"
             df3 = pd.read_sql(query, conn)
+            df3 = df3[df3['binary_model_id'].isin(binary_model_ids)]
         elif param3 in c_cols['column_name'].values:
-            query = "SELECT name, " + param3 + " FROM candidate"
+            query = "SELECT name, binary_model_id, " + param3 + " FROM candidate"
             df3 = pd.read_sql(query, conn)
+            df3 = df3[df3['binary_model_id'].isin(binary_model_ids)]
         else:
             raise ValueError("Parameter 3 not found in either table.")
     # Optional color data
     if color != None:
         if color in bm_cols['column_name'].values:
-            query = "SELECT candidate_name AS name, " + color + " FROM binary_model"
+            query = "SELECT candidate_name AS name, binary_model_id, " + color + " FROM binary_model"
             df_color = pd.read_sql(query, conn)
+            df_color = df_color[df_color['binary_model_id'].isin(binary_model_ids)]
         elif color in c_cols['column_name'].values:
-            query = "SELECT name, " + color + " FROM candidate"
+            query = "SELECT name, binary_model_id, " + color + " FROM candidate"
             df_color = pd.read_sql(query, conn)
+            df_color = df_color[df_color['binary_model_id'].isin(binary_model_ids)]
         else:
             raise ValueError("Color not found in either table.")
     conn.close() # close the connection
@@ -188,6 +233,7 @@ if __name__ == "__main__":
     parser.add_argument("-y", "--param2", type=str, required=True)
     parser.add_argument("-z", "--param3", type=str, required=False)
     parser.add_argument("-color", "--color", type=str, required=False)
+    parser.add_argument("-filter_by", "--filter_by", type=str, required=False)
     parser.add_argument("-no_dup_x", "--no_dup_x", type=bool, required=False)
     parser.add_argument("-no_dup_y", "--no_dup_y", type=bool, required=False)
     parser.add_argument("-no_dup_z", "--no_dup_z", type=bool, required=False)
@@ -196,4 +242,4 @@ if __name__ == "__main__":
     parser.add_argument("-log_y", "--log_y", type=bool, required=False)
     args = parser.parse_args()
     plotter(args.param1, args.param2, args.param3, args.color, args.no_dup_x, args.no_dup_y, args.no_dup_z, args.saveto, args.log_x, args.log_y)
-    #plotter -x param1 -y param2 [hist] -z param3 -color color -no_dup_x True -no_dup_y True -no_dup_z True -saveto path -log_x True -log_y True
+    #python plotter.py -x param1 -y param2 [hist] -z param3 -color color -no_dup_x True -no_dup_y True -no_dup_z True -saveto path -log_x True -log_y True
