@@ -1,5 +1,5 @@
 # Use an official lightweight Python image
-FROM python:3.12-slim
+FROM docker.io/library/python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

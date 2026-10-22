@@ -3,8 +3,8 @@ services:
   db:
     build: ./db/
     restart: always
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      #  volumes:
+      #- postgres_data:/var/lib/postgresql/data
     env_file:
       - .db_info
     healthcheck:
@@ -61,7 +61,7 @@ services:
     # No external port — nginx routes /tap/* to dachs:8080
 
   nginx:
-    image: nginx:alpine
+    image: docker.io/library/nginx:alpine
     restart: always
     ports:
       - "80:80"
